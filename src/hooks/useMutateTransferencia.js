@@ -11,12 +11,9 @@ export function useMutateTransferencia() {
         mutationFn: async (data) => {
 
             const transferensia = data;
-            const listaPaquetes = data.paqueteList;
+            const listaPaquetes = data.paqueteList.map(item => item.codigo);
 
             delete transferensia.paqueteList
-
-            console.log(transferensia)
-            console.log(listaPaquetes)
 
             const { data: transferencia ,error } = await supabase.from('transferencia_sucursal').insert({
                 ...transferensia,

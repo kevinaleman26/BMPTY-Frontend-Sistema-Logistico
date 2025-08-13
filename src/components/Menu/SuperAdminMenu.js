@@ -10,6 +10,7 @@ const SuperAdminMenu = () => {
           <ListItemLink href="/cliente?page=1&limit=10" primary="Clientes" />
           <ListItemLink href="/transferencia-sucursal?page=1&limit=10" primary="Transferencias a Sucursal" />
           <ListItemLink href="/paquetes?page=1&limit=10" primary="Paquetes" />
+          <ListItemLink href="/facturacion?page=1&limit=10" primary="Facturacion" />
       </List>
   )
 }

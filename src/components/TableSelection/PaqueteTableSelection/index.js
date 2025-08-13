@@ -19,10 +19,13 @@ export default function PaqueteTableSelection({ formik }) {
     const [selectedRows, setSelectedRows] = useState([])
     const [search, setSearch] = useState('')
 
+    console.log(initDT)
+
     useEffect(() => {
-        if (selectedRows){
-            const codigoList = selectedRows.map(item => item.codigo)
-            formik.setFieldValue('paqueteList', codigoList)
+        if (selectedRows?.length > 0){
+            console.log(selectedRows)
+            //const codigoList = selectedRows.map(item => item.codigo)
+            formik.setFieldValue('paqueteList', selectedRows)
         }
     }, [selectedRows])
 
