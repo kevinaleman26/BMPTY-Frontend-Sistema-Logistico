@@ -1,5 +1,8 @@
 'use client'
 
+import AdminMenu from '@/components/Menu/AdminMenu'
+import ClienteMenu from '@/components/Menu/ClienteMenu'
+import OperadorMenu from '@/components/Menu/OperadorMenu'
 import SuperAdminMenu from '@/components/Menu/SuperAdminMenu'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { useSession } from '@/hooks/useSession'
@@ -16,11 +19,12 @@ import {
     Toolbar,
     Typography
 } from '@mui/material'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
-const drawerWidth = 240
+const drawerWidth = 260
 
 export default function PrivadoLayout({ children }) {
     const { session } = useSession()
@@ -38,6 +42,13 @@ export default function PrivadoLayout({ children }) {
 
     const handleMenuClose = () => {
         setAnchorEl(null)
+    }
+
+    const menudRoleHandler = () => {
+        if (session?.role?.id === 1) return <SuperAdminMenu />
+        if (session?.role?.id === 2) return <AdminMenu  />
+        if (session?.role?.id === 3) return <OperadorMenu />
+        return <ClienteMenu />
     }
 
     return (
@@ -71,7 +82,7 @@ export default function PrivadoLayout({ children }) {
                         >
                             <MenuItem disabled>
                                 <Typography variant="body2">
-                                    {session?.user?.email}
+                                    {session?.email}
                                 </Typography>
                             </MenuItem>
                             <MenuItem component={Link} href="/perfil" onClick={handleMenuClose}>
@@ -93,15 +104,30 @@ export default function PrivadoLayout({ children }) {
                         width: drawerWidth,
                         boxSizing: 'border-box',
                         backgroundColor: '#111',
-                        color: '#fff'
+                        color: '#fff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between', // empuja el último elemento hacia abajo
+                        p: 2
                     }
                 }}
             >
-                <Typography variant="h6" sx={{ m: 3 }}>
-                    Panel Logístico
+                <Box>
+                    <Image
+                        src={'/logo.png'}
+                        width={238}
+                        height={140}
+                        alt="Bienvenido al Sistema Logístico"
+                    />
+                    {menudRoleHandler()}
+                </Box>
+
+                {/* Este queda abajo */}
+                <Typography variant="body2" sx={{ mt: 'auto', textAlign: 'center', py: 2 }}>
+                    {session?.full_name} - {session?.role?.name} - {session?.sucursal?.name}
                 </Typography>
-                <SuperAdminMenu />
             </Drawer>
+
 
             {/* Contenido */}
             <Box

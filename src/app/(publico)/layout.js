@@ -1,6 +1,7 @@
 'use client'
 
-import { AppBar, Box, Button, Toolbar, Typography } from '@mui/material'
+import { AppBar, Box, Button, Toolbar } from '@mui/material'
+import Image from 'next/image'
 import Link from 'next/link'
 
 
@@ -9,7 +10,7 @@ export default function PublicLayout({ children }) {
         <>
             <AppBar position="static" style={{ backgroundColor: '#111' }}>
                 <Toolbar sx={{ justifyContent: 'space-between' }}>
-                    <Typography variant="h6">🚚 Mi Logística</Typography>
+                    <Image src={'/logo.png'} width={150} height={90} alt=" Bienvenido al Sistema Logístico"  />
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <Button component={Link} href="/registro" color="inherit">
                             Registro
@@ -34,9 +35,7 @@ export default function PublicLayout({ children }) {
                         color: '#fff',
                     }}
                 >
-                    <Typography variant="h3" align="center">
-                        Bienvenido al Sistema Logístico
-                    </Typography>
+                    <Image src={'/logo.png'} width={500} height={400} alt=" Bienvenido al Sistema Logístico"  />
                 </Box>
             </Box>
         </>
