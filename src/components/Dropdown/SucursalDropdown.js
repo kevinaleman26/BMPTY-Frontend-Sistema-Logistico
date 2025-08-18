@@ -12,6 +12,7 @@ export default function SucursalDropdown({ name, value, onChange, error, helperT
                 .from('sucursal')
                 .select('id, name')
                 .eq('status', true)
+                .gt('id', 0)
 
             if (error) throw new Error(error.message)
             return data
@@ -28,6 +29,8 @@ export default function SucursalDropdown({ name, value, onChange, error, helperT
             fullWidth
             required
             error={error}
+            InputLabelProps={{ style: { color: '#ccc' } }}
+            InputProps={{ style: { color: '#fff' } }}
         >
             {isLoading ? (
                 <MenuItem disabled>Cargando...</MenuItem>
