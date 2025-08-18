@@ -24,7 +24,9 @@ export default function OperadorPage() {
     return (
         <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h5">Gestión de Operadores</Typography>
+                <Typography variant="h2" color="white">
+                    Gestión de Operadores
+                </Typography>
                 <Button
                     variant="contained"
                     startIcon={<AddIcon />}

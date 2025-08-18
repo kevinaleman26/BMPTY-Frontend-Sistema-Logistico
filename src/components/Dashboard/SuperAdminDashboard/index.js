@@ -13,14 +13,14 @@ const SuperAdminDashboard = ({ user }) => {
         sx={{ width: '100%', mx: 'auto', px: { xs: 2, md: 3 } }}
       >
         {/* Header */}
-        <Grid item xs={12}>
-          <Typography variant="h3" color="white">
+        <Grid item xs={12} md={12} lg={12}>
+          <Typography variant="h2" color="white">
             Bienvenido, {user?.full_name}
           </Typography>
         </Grid>
 
         {/* KPIs */}
-        <Grid item xs={12} >
+        <Grid item xs={12} md={12} lg={12}>
           <RoleCount />
         </Grid>
 

@@ -7,12 +7,13 @@ const getClientInfo = async (id) => {
     let { data: cliente, error } = await supabase
         .from('cliente')
         .select("*")
-        .eq('id',id)
+        .eq('id', id)
         .single()
 
     if (error) return null;
 
     cliente['role'] = {
+        id: 4,
         name: 'Cliente'
     }
 
@@ -39,8 +40,8 @@ export function useSession() {
 
         const actionSession = async (session) => {
 
-            if (!session){
-                return 
+            if (!session) {
+                return
             }
 
             const getSesionInfo = session

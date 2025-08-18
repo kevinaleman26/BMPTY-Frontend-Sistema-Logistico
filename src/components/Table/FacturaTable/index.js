@@ -16,8 +16,6 @@ export default function FacturaTable({ onEdit }) {
     const searchParams = useSearchParams()
     const { data, count, isLoading, page, limit } = useFacturas()
 
-    console.log(data)
-
     const columns = [
         { field: 'id', headerName: 'Número', width: 80 },
 
@@ -25,7 +23,7 @@ export default function FacturaTable({ onEdit }) {
             field: 'cliente',
             headerName: 'Cliente',
             flex: 1,
-            renderCell: (params) => 
+            renderCell: (params) =>
                 params.row.cliente?.full_name || params.row.cliente?.email || '—'
         },
 
@@ -94,12 +92,12 @@ export default function FacturaTable({ onEdit }) {
             width: 120,
             renderCell: (params) => {
                 const { sucursal, factura_detalle, subtotal, descuento, otros, impuestos, total } = params.row
-                const paquetes = factura_detalle.map( item => {
+                const paquetes = factura_detalle.map(item => {
                     const { proveedor_paquetes } = item;
                     const respuesta = {
                         ...proveedor_paquetes,
                         id: item.id,
-                        tracking : item.paquete_id,
+                        tracking: item.paquete_id,
                         precioLb: proveedor_paquetes.precio,
                         total: proveedor_paquetes.precio
                     };

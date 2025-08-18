@@ -5,7 +5,7 @@
 import TransferenciaModal from '@/components/Modal/TransferenciaModal'
 import TransferenciaTable from '@/components/Table/TransferenciaTable'
 import AddIcon from '@mui/icons-material/Add'
-import { Box, Button } from '@mui/material'
+import { Box, Button, Typography } from '@mui/material'
 import { useState } from 'react'
 
 export default function TransferenciaPage() {
@@ -30,7 +30,9 @@ export default function TransferenciaPage() {
     return (
         <Box p={3}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <h2>Gestión de Transferencias</h2>
+                <Typography variant="h2" color="white">
+                    Gestión de Transferencias
+                </Typography>
                 <Button
                     variant="contained"
                     startIcon={<AddIcon />}
@@ -41,7 +43,6 @@ export default function TransferenciaPage() {
             </Box>
 
             <TransferenciaTable onEdit={handleEdit} />
-
             <TransferenciaModal
                 open={modalOpen}
                 onClose={handleClose}

@@ -1,11 +1,13 @@
 'use client'
 
-import { supabase } from '@/lib/supabase'
-import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'next/navigation'
+import { useSession } from '@/hooks/useSession'; // <-- tu hook de sesión
+import { supabase } from '@/lib/supabase';
+import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
 
 export function useClientes() {
     const searchParams = useSearchParams()
+    const { session, loading } = useSession()
 
     const page = parseInt(searchParams.get('page')) || 1
     const limit = parseInt(searchParams.get('limit')) || 10
@@ -18,16 +20,30 @@ export function useClientes() {
     const from = (page - 1) * limit
     const to = from + limit - 1
 
-    const queryKey = ['clientes', { page, limit, nombre, documento, sucursalId, tipoDocumentoId }]
+    const queryKey = ['clientes', { page, limit, nombre, documento, sucursalId, tipoDocumentoId, user: session?.user?.id }]
 
     const queryFn = async () => {
-        let query = supabase
-            .from('cliente')
-            .select(
-                '*, sucursal(id, name), tipo_documento(id,name)'
-                , { count: 'exact' }
-            )
-            .range(from, to)
+
+        let query;
+
+        if (session.role.id !== 1) {
+            query = supabase
+                .from('cliente')
+                .select(
+                    '*, sucursal(id, name), tipo_documento(id,name)',
+                    { count: 'exact' }
+                )
+                .range(from, to)
+                .eq("sucursal_id", session.sucursal_id)
+        } else {
+            query = supabase
+                .from('cliente')
+                .select(
+                    '*, sucursal(id, name), tipo_documento(id,name)',
+                    { count: 'exact' }
+                )
+                .range(from, to)
+        }
 
         if (nombre) query = query.ilike('full_name', `%${nombre}%`)
         if (documento) query = query.ilike('document_number', `%${documento}%`)
@@ -43,16 +59,18 @@ export function useClientes() {
 
     const { data, isLoading, isError, error } = useQuery({
         queryKey,
-        queryFn
+        queryFn,
+        enabled: !!session && !loading, // 👈 espera a que la sesión esté lista
     })
 
     return {
         data,
-        isLoading,
+        isLoading: isLoading || loading, // 👈 cubre también el loading de la sesión
         isError,
         error,
         count: data?.count || 0,
         page,
-        limit
+        limit,
+        session, // 👈 lo devuelvo por si quieres usar datos de sesión en el componente
     }
 }

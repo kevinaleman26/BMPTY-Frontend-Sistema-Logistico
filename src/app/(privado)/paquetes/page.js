@@ -1,10 +1,8 @@
 'use client'
 
-
 import PaqueteModal from '@/components/Modal/PaqueteModal'
 import PaqueteTable from '@/components/Table/PequeteTable'
-import AddIcon from '@mui/icons-material/Add'
-import { Box, Button } from '@mui/material'
+import { Box, Typography } from '@mui/material'
 import { useState } from 'react'
 
 export default function PaquetePage() {
@@ -24,10 +22,9 @@ export default function PaquetePage() {
     return (
         <Box p={3}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <h2>Gestión de Paquetes</h2>
-                <Button variant="contained" onClick={() => setModalOpen(true)} startIcon={<AddIcon />}>
-                    Crear Paquete
-                </Button>
+                <Typography variant="h2" color="white">
+                    Gestión de Paquetes
+                </Typography>
             </Box>
 
             <PaqueteTable onEdit={handleEdit} />

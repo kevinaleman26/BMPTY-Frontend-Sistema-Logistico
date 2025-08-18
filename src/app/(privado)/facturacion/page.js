@@ -5,7 +5,7 @@
 import FacturaModal from '@/components/Modal/FacturaModal'
 import FacturaTable from '@/components/Table/FacturaTable'
 import AddIcon from '@mui/icons-material/Add'
-import { Box, Button } from '@mui/material'
+import { Box, Button, Typography } from '@mui/material'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -38,14 +38,15 @@ export default function FacturacionPage() {
     return (
         <Box p={3}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <h2>Facturación</h2>
+                <Typography variant="h2" color="white">
+                    Gestión de Facturación
+                </Typography>
                 <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
                     Crear factura
                 </Button>
             </Box>
 
             <FacturaTable onEdit={handleEdit} />
-
             <FacturaModal
                 open={open}
                 onClose={handleClose}

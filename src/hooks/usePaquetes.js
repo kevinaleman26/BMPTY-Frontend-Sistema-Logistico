@@ -1,14 +1,17 @@
 'use client'
 
+import { useSession } from '@/hooks/useSession'
 import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 
 export const usePaquetes = () => {
     const searchParams = useSearchParams()
+    const { session, loading } = useSession()
 
     const page = Number(searchParams.get('page')) || 1
     const limit = Number(searchParams.get('limit')) || 10
+
     const factura_id = searchParams.get('factura_id') || ''
     const tipo = searchParams.get('tipo') || ''
     const codigo = searchParams.get('codigo') || ''
@@ -19,9 +22,17 @@ export const usePaquetes = () => {
 
     const queryFn = async () => {
         let query = supabase
-            .from('proveedor_paquetes')
-            .select('*', { count: 'exact' })
-            .range(offset, offset + limit - 1)
+            .from('transferencia_sucursal')
+            .select(`
+                id,
+                solicitud_paquete(
+                    proveedor_paquetes(*)
+                )
+            `, { count: 'exact' })
+            .eq('receptor_sucursal_id', session.sucursal.id)
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
 
         if (factura_id) query = query.ilike('factura_id', `%${factura_id}%`)
         if (tipo) query = query.ilike('tipo', `%${tipo}%`)
@@ -29,11 +40,21 @@ export const usePaquetes = () => {
 
         const { data, count, error } = await query
 
+        let response = []
+        data.map(item => {
+            item.solicitud_paquete.map(item => {
+                if (response.find(element => element.id === item.proveedor_paquetes.id)) {
+                    return
+                }
+                response.push(item.proveedor_paquetes)
+            })
+        })
+
         if (error) throw error
-        return { data, count }
+        return { data: response, count }
     }
 
-    const { data, isLoading, isError, error } = useQuery({ queryKey, queryFn })
+    const { data, isLoading, isError, error } = useQuery({ queryKey, queryFn, enabled: !!session && !loading, })
 
     return {
         data: data || { data: [], count: 0 },

@@ -46,9 +46,9 @@ export default function PrivadoLayout({ children }) {
 
     const menudRoleHandler = () => {
         if (session?.role?.id === 1) return <SuperAdminMenu />
-        if (session?.role?.id === 2) return <AdminMenu  />
+        if (session?.role?.id === 2) return <AdminMenu />
         if (session?.role?.id === 3) return <OperadorMenu />
-        return <ClienteMenu />
+        if (session?.role?.id === 4) return <ClienteMenu />
     }
 
     return (

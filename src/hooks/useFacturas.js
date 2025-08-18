@@ -1,12 +1,14 @@
 // src/hooks/useFacturas.js
 'use client'
 
+import { useSession } from '@/hooks/useSession'
 import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 
 export const useFacturas = () => {
     const searchParams = useSearchParams()
+    const { session, loading } = useSession()
 
     const page = Number(searchParams.get('page')) || 1
     const limit = Number(searchParams.get('limit')) || 10
@@ -44,23 +46,24 @@ export const useFacturas = () => {
                 )
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
-            .range(offset, offset + limit - 1);
+            .range(offset, offset + limit - 1)
+            .eq("sucursal_id", session.sucursal.id)
 
 
         if (numero) query = query.ilike('numero', `%${numero}%`)
-        if (cliente) query = query.ilike('cliente_email', `%${cliente}%`)
-        if (status) query = query.eq('status', status)
+        if (payment_status) query = query.eq('payment_status', payment_status)
+        if (delivery_status) query = query.eq('delivery_status', delivery_status)
 
         const { data, error, count } = await query
         if (error) throw error
         return { data, count }
     }
 
-    const { data, isLoading, isError, error } = useQuery({ queryKey, queryFn })
+    const { data, isLoading, isError, error } = useQuery({ queryKey, queryFn, enabled: !!session && !loading, })
 
     return {
         data: data || { data: [], count: 0 },
-        isLoading,
+        isLoading: isLoading || loading,
         isError,
         error,
         page,

@@ -1,8 +1,7 @@
 'use client'
 
 import { usePaquetes } from '@/hooks/usePaquetes'
-import EditIcon from '@mui/icons-material/Edit'
-import { Box, CircularProgress, IconButton } from '@mui/material'
+import { Box, CircularProgress } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
 import PaqueteFilters from './PaqueteFilters'
@@ -22,6 +21,7 @@ export default function PaqueteTable({ onEdit }) {
         { field: 'peso', headerName: 'Peso', type: 'number', width: 100 },
         { field: 'volumen', headerName: 'Volumen', type: 'number', width: 100 },
         { field: 'precio', headerName: 'Precio', type: 'number', width: 100 },
+        /*
         {
             field: 'accion',
             headerName: 'Acción',
@@ -32,6 +32,7 @@ export default function PaqueteTable({ onEdit }) {
                 </IconButton>
             )
         }
+        */
     ]
 
     return (

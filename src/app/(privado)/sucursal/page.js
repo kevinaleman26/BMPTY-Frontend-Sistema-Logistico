@@ -24,7 +24,9 @@ export default function SucursalesPage() {
     return (
         <Box sx={{ p: 4 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h5">Lista de Sucursales</Typography>
+                <Typography variant="h2" color="white">
+                    Lista de Sucursales
+                </Typography>
                 <Button variant="contained" onClick={handleOpenCreate} startIcon={<AddIcon />}>
                     Crear Sucursal
                 </Button>
