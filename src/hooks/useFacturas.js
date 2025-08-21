@@ -15,11 +15,11 @@ export const useFacturas = () => {
 
     // Filtros iniciales (luego agregamos más si quieres)
     const numero = searchParams.get('numero') || ''
-    const cliente = searchParams.get('cliente') || ''
-    const status = searchParams.get('status') || ''
+    const payment_status = searchParams.get('payment_status') || ''
+    const delivery_status = searchParams.get('delivery_status') || ''
 
     const offset = (page - 1) * limit
-    const queryKey = ['facturas', { page, limit, numero, cliente, status }]
+    const queryKey = ['facturas', { page, limit, numero, payment_status, delivery_status }]
 
     const queryFn = async () => {
         let query = supabase
@@ -69,8 +69,8 @@ export const useFacturas = () => {
         page,
         limit,
         numero,
-        cliente,
-        status,
+        payment_status,
+        delivery_status,
         count: data?.count || 0
     }
 }
