@@ -15,27 +15,30 @@ export function useMutateTransferencia() {
 
             delete transferensia.paqueteList
 
-            const { data: transferencia ,error } = await supabase.from('transferencia_sucursal').insert({
-                ...transferensia,
-                created_at: new Date()
-            }).select()
+            const { data: transferencia, error } = await supabase
+                .from('transferencia_sucursal')
+                .insert({
+                    ...transferensia,
+                    created_at: new Date()
+                })
+                .select()
+                .single()
 
             if (error) throw error
 
-            // Insertar solicitud_paquete
-            const solicitudData = listaPaquetes.map((codigo) => ({
-                paquete_id: codigo,
-                transferencia_id: transferencia[0].id
-            }))
-
-            const { error: solicitudError } = await supabase
+            const { data: dt, error: solicitudError } = await supabase
                 .from('solicitud_paquete')
-                .insert(solicitudData)
+                .update({ transferencia_id: transferencia.id })
+                .in('paquete_id', listaPaquetes)
+                .select('*');
 
             if (solicitudError) throw solicitudError
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['transferencias'])
+        },
+        onError: (err) => {
+            console.log(err)
         }
     })
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { usePaquetes } from '@/hooks/usePaquetes'
+import { supabase } from '@/lib/supabase'
 import {
     Box,
     CircularProgress,
@@ -8,6 +9,7 @@ import {
     Typography
 } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
+import { useQuery } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -15,16 +17,17 @@ export default function PaqueteTableSelection({ formik }) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { data, count, isLoading, page, limit } = usePaquetes()
-    const [initDT, setInitDt] = useState(formik.values.paqueteList.map(item => item.paquete_id) || [])
+
+    const [initDT, setInitDt] = useState(() =>
+        Array.isArray(formik?.values?.paqueteList)
+            ? formik.values.paqueteList.map(item => item.paquete_id)
+            : []
+    )
     const [selectedRows, setSelectedRows] = useState([])
     const [search, setSearch] = useState('')
 
-    console.log(initDT)
-
     useEffect(() => {
-        if (selectedRows?.length > 0){
-            console.log(selectedRows)
-            //const codigoList = selectedRows.map(item => item.codigo)
+        if (selectedRows?.length > 0) {
             formik.setFieldValue('paqueteList', selectedRows)
         }
     }, [selectedRows])
@@ -38,83 +41,90 @@ export default function PaqueteTableSelection({ formik }) {
         { field: 'volumen', headerName: 'Volumen', type: 'number', flex: 1, align: 'center', headerAlign: 'center' },
     ]
 
+    // 🚀 Trae los paquetes por código (solo si hay initDT) — FUERA de useMemo
+    const {
+        data: initRows = [],
+        isLoading: initLoading,
+        isError: initError,
+    } = useQuery({
+        queryKey: ['proveedor_paquetesByCodigo', initDT],
+        enabled: Array.isArray(initDT) && initDT.length > 0,
+        staleTime: 30_000,
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('proveedor_paquetes')
+                .select('*')
+                .in('codigo', initDT)
+            if (error) throw error
+            return data ?? []
+        },
+    })
+
+    const baseRows = data?.data || []
+
+    // ✅ Solo lógica sincrónica dentro de useMemo
     const filteredRows = useMemo(() => {
-        const rows = data?.data || []
+        if (initDT.length > 0) return initRows
 
-        if (initDT.length > 0) {
-            // Mostrar solo los paquetes cuyos códigos están en selectedRows
-            return rows.filter(row => initDT.includes(row.codigo))
-        }
+        if (!search.trim()) return baseRows
 
-        if (!search.trim()) return rows
-
-        const lowerSearch = search.toLowerCase()
-        const filtrados = rows.filter(row =>
-            Object.values(row).some(value =>
-                String(value).toLowerCase().includes(lowerSearch)
-            )
+        const lower = search.toLowerCase()
+        const filtrados = baseRows.filter(row =>
+            Object.values(row).some(value => String(value).toLowerCase().includes(lower))
         )
         const combined = [...selectedRows, ...filtrados]
-        const removeDuplicate = Array.from(
-            new Map(combined.map(item => [item.codigo, item])).values()
-        )
-        return removeDuplicate;
-    }, [search, data?.data, selectedRows, initDT])
-
-
+        return Array.from(new Map(combined.map(item => [item.codigo, item])).values())
+    }, [initDT, initRows, baseRows, search, selectedRows])
 
     return (
-        <Box height={'auto'}>
-
+        <Box height="auto">
             <Typography variant="h6" gutterBottom>
                 Lista de Paquetes
             </Typography>
 
-            {
-                initDT.length === 0 && (
-                    <Box my={2}>
-                        <Box mb={2}>
-                            <TextField
-                                fullWidth
-                                label="Buscar paquete"
-                                variant="outlined"
-                                size="small"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                            />
-                        </Box>
-                        <Typography variant="subtitle1" gutterBottom>
-                            Seleccionados:
-                        </Typography>
-                        <Box display="flex" gap={1} flexWrap="wrap">
-                            {selectedRows.length === 0 ? (
-                                <Typography variant="body2" color="text.secondary">
-                                    No hay paquetes seleccionados.
-                                </Typography>
-                            ) : (
-                                selectedRows.map((item, idx) => (
-                                    <Box
-                                        key={idx}
-                                        sx={{
-                                            backgroundColor: '#222',
-                                            color: '#fff',
-                                            px: 1.5,
-                                            py: 0.5,
-                                            borderRadius: '12px',
-                                            fontSize: '0.8rem',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            border: '1px solid #444'
-                                        }}
-                                    >
-                                        {item.codigo}
-                                    </Box>
-                                ))
-                            )}
-                        </Box>
+            {initDT.length === 0 && (
+                <Box my={2}>
+                    <Box mb={2}>
+                        <TextField
+                            fullWidth
+                            label="Buscar paquete"
+                            variant="outlined"
+                            size="small"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
                     </Box>
-                )
-            }
+                    <Typography variant="subtitle1" gutterBottom>
+                        Seleccionados:
+                    </Typography>
+                    <Box display="flex" gap={1} flexWrap="wrap">
+                        {selectedRows.length === 0 ? (
+                            <Typography variant="body2" color="text.secondary">
+                                No hay paquetes seleccionados.
+                            </Typography>
+                        ) : (
+                            selectedRows.map((item, idx) => (
+                                <Box
+                                    key={idx}
+                                    sx={{
+                                        backgroundColor: '#222',
+                                        color: '#fff',
+                                        px: 1.5,
+                                        py: 0.5,
+                                        borderRadius: '12px',
+                                        fontSize: '0.8rem',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        border: '1px solid #444'
+                                    }}
+                                >
+                                    {item.codigo}
+                                </Box>
+                            ))
+                        )}
+                    </Box>
+                </Box>
+            )}
 
             {/* Tabla */}
             {isLoading ? (
@@ -123,7 +133,9 @@ export default function PaqueteTableSelection({ formik }) {
                 <DataGrid
                     rows={filteredRows}
                     columns={columns}
-                    rowCount={count || 0}
+                    loading={isLoading || initLoading}
+                    getRowId={(row) => row.id ?? row.codigo}  // 🔑 por si no tienes id
+                    rowCount={initDT.length > 0 ? initRows.length : (count || 0)}
                     paginationMode="server"
                     pageSizeOptions={[5, 10, 20]}
                     paginationModel={{
@@ -132,10 +144,8 @@ export default function PaqueteTableSelection({ formik }) {
                     }}
                     onPaginationModelChange={({ page: newPage, pageSize: newPageSize }) => {
                         const params = new URLSearchParams(searchParams.toString())
-
-                        params.set('page', newPage + 1) // el DataGrid usa 0-indexed
-                        params.set('limit', newPageSize)
-
+                        params.set('page', String(newPage + 1)) // DataGrid es 0-indexed
+                        params.set('limit', String(newPageSize))
                         router.push(`?${params.toString()}`)
                     }}
                     checkboxSelection={initDT.length === 0}
@@ -144,8 +154,8 @@ export default function PaqueteTableSelection({ formik }) {
                         const ids = Array.isArray(newSelection)
                             ? newSelection
                             : Array.from(newSelection?.ids || [])
-
-                        const selected = filteredRows.filter((row) => ids.includes(row.id)) || []
+                        const idSet = new Set(ids)
+                        const selected = filteredRows.filter(r => idSet.has(r.id ?? r.codigo))
                         setSelectedRows(selected)
                     }}
                     sx={{
@@ -161,11 +171,11 @@ export default function PaqueteTableSelection({ formik }) {
                             backgroundColor: '#222 !important'
                         },
                         '& .Mui-selected': {
-                            backgroundColor: '#444 !important', // color de fondo de fila seleccionada
-                            color: '#fff !important'            // color del texto
+                            backgroundColor: '#444 !important',
+                            color: '#fff !important'
                         },
                         '& .MuiCheckbox-root.Mui-checked': {
-                            color: '#1976d2' // color del checkbox seleccionado (azul por defecto de MUI)
+                            color: '#1976d2'
                         }
                     }}
                 />
