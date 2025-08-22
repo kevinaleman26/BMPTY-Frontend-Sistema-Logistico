@@ -18,11 +18,11 @@ export default function ClientesTable() {
             headerName: 'Tipo Documento',
             flex: 1,
             renderCell: (params) => (<Chip
-                    label={params.row?.tipo_documento?.name ?? '—'}
-                    size="small"
-                    color="info"
-                    variant="outlined"
-                />
+                label={params.row?.tipo_documento?.name ?? '—'}
+                size="small"
+                color="info"
+                variant="outlined"
+            />
             )
         },
         { field: 'document', headerName: 'Documento', flex: 1 },
@@ -103,7 +103,26 @@ export default function ClientesTable() {
                         },
                         '& .MuiDataGrid-row:hover': {
                             backgroundColor: '#222 !important'
-                        }
+                        },
+                        '& .MuiDataGrid-footerContainer': {
+                            backgroundColor: '#222',
+                            color: '#000',
+                            fontWeight: 'bold',
+                            borderTop: '1px solid #444',
+                        },
+                        '& .MuiTablePagination-root': {
+                            color: '#fff',
+                        },
+                        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                            color: '#fff',
+                        },
+                        '& .MuiTablePagination-input .MuiSelect-select': {
+                            color: '#fff',
+                            backgroundColor: 'transparent',
+                        },
+                        '& .MuiTablePagination-actions .MuiIconButton-root': {
+                            color: '#fff',
+                        },
                     }}
                 />
             )}

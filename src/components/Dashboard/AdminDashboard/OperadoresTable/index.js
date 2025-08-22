@@ -68,7 +68,7 @@ export default function OperadoresTable() {
     }, [])
 
     return (
-        <Box sx={{ width: '550px'  }}>
+        <Box sx={{ width: '550px' }}>
             <Typography variant="h4" color="white" sx={{ py: 4 }}>
                 Operadores
             </Typography>
@@ -91,7 +91,26 @@ export default function OperadoresTable() {
                         },
                         '& .MuiDataGrid-row:hover': {
                             backgroundColor: '#222 !important'
-                        }
+                        },
+                        '& .MuiDataGrid-footerContainer': {
+                            backgroundColor: '#222',
+                            color: '#000',
+                            fontWeight: 'bold',
+                            borderTop: '1px solid #444',
+                        },
+                        '& .MuiTablePagination-root': {
+                            color: '#fff',
+                        },
+                        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                            color: '#fff',
+                        },
+                        '& .MuiTablePagination-input .MuiSelect-select': {
+                            color: '#fff',
+                            backgroundColor: 'transparent',
+                        },
+                        '& .MuiTablePagination-actions .MuiIconButton-root': {
+                            color: '#fff',
+                        },
                     }}
                 />
             )}

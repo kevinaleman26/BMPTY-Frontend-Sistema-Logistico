@@ -57,10 +57,10 @@ export default function TransferenciaTable({ onEdit }) {
                 <Chip label={params.row.metodo_pago?.name || '—'} color="primary" />
             )
         },
-        
-        { 
-            field: 'delivery_status', 
-            headerName: 'Estado Entrega', 
+
+        {
+            field: 'delivery_status',
+            headerName: 'Estado Entrega',
             flex: 1,
             renderCell: (params) => (
                 <Chip
@@ -128,7 +128,26 @@ export default function TransferenciaTable({ onEdit }) {
                             },
                             '& .MuiDataGrid-row:hover': {
                                 backgroundColor: '#222 !important'
-                            }
+                            },
+                            '& .MuiDataGrid-footerContainer': {
+                                backgroundColor: '#222',
+                                color: '#000',
+                                fontWeight: 'bold',
+                                borderTop: '1px solid #444',
+                            },
+                            '& .MuiTablePagination-root': {
+                                color: '#fff',
+                            },
+                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                                color: '#fff',
+                            },
+                            '& .MuiTablePagination-input .MuiSelect-select': {
+                                color: '#fff',
+                                backgroundColor: 'transparent',
+                            },
+                            '& .MuiTablePagination-actions .MuiIconButton-root': {
+                                color: '#fff',
+                            },
                         }}
                     />
                 )}

@@ -59,7 +59,26 @@ export default function SucursalesTable() {
                         },
                         '& .MuiDataGrid-row:hover': {
                             backgroundColor: '#222 !important'
-                        }
+                        },
+                        '& .MuiDataGrid-footerContainer': {
+                            backgroundColor: '#222',
+                            color: '#000',
+                            fontWeight: 'bold',
+                            borderTop: '1px solid #444',
+                        },
+                        '& .MuiTablePagination-root': {
+                            color: '#fff',
+                        },
+                        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                            color: '#fff',
+                        },
+                        '& .MuiTablePagination-input .MuiSelect-select': {
+                            color: '#fff',
+                            backgroundColor: 'transparent',
+                        },
+                        '& .MuiTablePagination-actions .MuiIconButton-root': {
+                            color: '#fff',
+                        },
                     }}
                 />
             )}
