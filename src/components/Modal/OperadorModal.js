@@ -38,9 +38,6 @@ export default function OperadorModal({ open, onClose, operador }) {
         }
     })
 
-    if (!operador){
-        return null
-    }
 
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
@@ -76,7 +73,7 @@ export default function OperadorModal({ open, onClose, operador }) {
                         fullWidth
                         required
                     />
-                    
+
                     <TextField
                         label="Correo electrónico"
                         name="email"
@@ -110,7 +107,7 @@ export default function OperadorModal({ open, onClose, operador }) {
                             </>
                         )
                     }
-                    
+
                     <Box display="flex" justifyContent="flex-end" gap={2} mt={2}>
                         <Button variant="outlined" onClick={onClose}>
                             Cancelar

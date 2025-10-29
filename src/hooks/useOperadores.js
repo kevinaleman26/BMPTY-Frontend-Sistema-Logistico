@@ -21,23 +21,11 @@ export const useOperadores = () => {
 
     const queryFn = async () => {
 
-        let query;
+        let query = supabase.from('operador')
+            .select('id, full_name, email, sucursal_id, role_id, role(name)', { count: 'exact' })
+            .range(offset, offset + limit - 1)
 
-        if (session.role.id === 2) {
-            query = supabase
-                .from('operador')
-                .select('id, full_name, email, sucursal_id, role_id, role(name)', { count: 'exact' })
-                .range(offset, offset + limit - 1)
-                .eq("sucursal_id", session.sucursal_id)
-        }
-
-        if (session.role.id === 1) {
-            query = supabase
-                .from('operador')
-                .select('id, full_name, email, sucursal_id, role_id, role(name)', { count: 'exact' })
-                .range(offset, offset + limit - 1)
-        }
-
+        if (session.role.id === 2) query = query.eq("sucursal_id", session.sucursal_id)
         if (full_name) query = query.ilike('full_name', `%${full_name}%`)
         if (email) query = query.ilike('email', `%${email}%`)
         if (role_id) query = query.eq('role_id', role_id)

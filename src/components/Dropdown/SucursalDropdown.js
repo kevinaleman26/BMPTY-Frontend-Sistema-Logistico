@@ -29,8 +29,6 @@ export default function SucursalDropdown({ name, value, onChange, error, helperT
             fullWidth
             required
             error={error}
-            InputLabelProps={{ style: { color: '#ccc' } }}
-            InputProps={{ style: { color: '#fff' } }}
         >
             {isLoading ? (
                 <MenuItem disabled>Cargando...</MenuItem>
