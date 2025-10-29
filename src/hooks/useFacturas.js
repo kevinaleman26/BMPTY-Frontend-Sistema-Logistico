@@ -47,9 +47,8 @@ export const useFacturas = () => {
             `, { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1)
-            .eq("sucursal_id", session.sucursal.id)
 
-
+        if (session.role.id !== 1) query = query.eq("sucursal_id", session.sucursal.id)
         if (numero) query = query.ilike('numero', `%${numero}%`)
         if (payment_status) query = query.eq('payment_status', payment_status)
         if (delivery_status) query = query.eq('delivery_status', delivery_status)

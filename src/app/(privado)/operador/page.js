@@ -21,6 +21,11 @@ export default function OperadorPage() {
         setModalOpen(true)
     }
 
+    const newOperator = () => {
+        setSelectedOperador(null)
+        setModalOpen(true)
+    }
+
     return (
         <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -29,8 +34,9 @@ export default function OperadorPage() {
                 </Typography>
                 <Button
                     variant="contained"
+                    color="primary"
                     startIcon={<AddIcon />}
-                    onClick={() => setModalOpen(true)}
+                    onClick={newOperator}
                 >
                     Nuevo Operador
                 </Button>

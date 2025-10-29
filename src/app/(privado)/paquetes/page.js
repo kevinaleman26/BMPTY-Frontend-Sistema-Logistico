@@ -26,7 +26,6 @@ export default function PaquetePage() {
                     Gestión de Paquetes
                 </Typography>
             </Box>
-
             <PaqueteTable onEdit={handleEdit} />
             <PaqueteModal open={modalOpen} onClose={handleClose} paquete={selectedPaquete} />
         </Box>

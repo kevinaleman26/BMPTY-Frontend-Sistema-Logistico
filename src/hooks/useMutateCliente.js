@@ -1,7 +1,6 @@
 // src/hooks/useMutateCliente.js
 'use client'
 
-import { supabase } from '@/lib/supabase'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 
@@ -17,21 +16,20 @@ export function useMutateCliente() {
             queryClient.invalidateQueries(['clientes'])
         },
         onError: (error) => {
-            console.error('Error al crear cliente:', error)
-            throw error
+            alert(error.response.data.error)
         }
     })
 
     const updateCliente = useMutation({
-        mutationFn: async ({ id, ...rest }) => {
-            const { error } = await supabase
-                .from('cliente')
-                .update(rest)
-                .eq('id', id)
-            if (error) throw error
+        mutationFn: async (nuevo) => {
+            const { data } = await axios.put('/api/cliente/update', nuevo)
+            return data
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['clientes'])
+        },
+        onError: (error) => {
+            alert(error.response.data.error)
         }
     })
 

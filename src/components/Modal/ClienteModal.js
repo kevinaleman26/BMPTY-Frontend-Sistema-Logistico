@@ -20,7 +20,7 @@ export default function ClienteModal({ open, onClose, cliente }) {
     const { data: tiposDoc } = useTipoDocumento()
     const { data: sucursales } = useSucursal()
 
-    
+
 
     const formik = useFormik({
         initialValues: {
