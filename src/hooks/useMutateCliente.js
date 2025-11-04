@@ -9,8 +9,13 @@ export function useMutateCliente() {
 
     const createCliente = useMutation({
         mutationFn: async (nuevo) => {
-            const { data } = await axios.post('/api/cliente/create', nuevo)
-            return data
+            try {
+                const { data } = await axios.post('/api/cliente/create', nuevo)
+                return data
+            } catch (error) {
+                // Código que se ejecuta si ocurre un error
+                console.error('Ocurrió un error:', error);
+            }
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['clientes'])
@@ -22,8 +27,13 @@ export function useMutateCliente() {
 
     const updateCliente = useMutation({
         mutationFn: async (nuevo) => {
-            const { data } = await axios.put('/api/cliente/update', nuevo)
-            return data
+            try {
+                const { data } = await axios.put('/api/cliente/update', nuevo)
+                return data
+            } catch (error) {
+                // Código que se ejecuta si ocurre un error
+                console.error('Ocurrió un error:', error);
+            }
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['clientes'])

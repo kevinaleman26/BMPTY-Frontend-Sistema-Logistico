@@ -10,6 +10,8 @@ export function useMutateTransferencia() {
     const createTransferencia = useMutation({
         mutationFn: async (data) => {
 
+            console.log(data)
+
             const transferensia = data;
             const listaPaquetes = data.paqueteList.map(item => item.codigo);
 
@@ -44,6 +46,7 @@ export function useMutateTransferencia() {
 
     const updateTransferencia = useMutation({
         mutationFn: async ({ id, ...rest }) => {
+            delete rest.paqueteList
             const { error } = await supabase
                 .from('transferencia_sucursal')
                 .update(rest)

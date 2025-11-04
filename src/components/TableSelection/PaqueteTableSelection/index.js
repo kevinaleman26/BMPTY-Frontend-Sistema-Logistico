@@ -53,7 +53,11 @@ export default function PaqueteTableSelection({ formik }) {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('proveedor_paquetes')
-                .select('*')
+                .select(`
+                    *, 
+                    solicitud_paquete:solicitud_paquete(paquete_id)
+                `)
+                .is('solicitud_paquete.paquete_id', null)
                 .in('codigo', initDT)
             if (error) throw error
             return data ?? []
@@ -176,7 +180,25 @@ export default function PaqueteTableSelection({ formik }) {
                         },
                         '& .MuiCheckbox-root.Mui-checked': {
                             color: '#1976d2'
-                        }
+                        },
+                        '& .MuiTablePagination-selectLabel': {
+                            color: '#fff'
+                        },
+                        '& .MuiTablePagination-select': {
+                            color: '#fff'
+                        },
+                        '& .MuiTablePagination-selectIcon': {
+                            color: '#fff'
+                        },
+                        '& .MuiTablePagination-displayedRows': {
+                            color: '#fff'
+                        },
+                        '& .MuiTablePagination-actions': {
+                            color: '#fff'
+                        },
+                        '& .MuiIconButton-root': {
+                            color: '#fff'
+                        },
                     }}
                 />
             )}

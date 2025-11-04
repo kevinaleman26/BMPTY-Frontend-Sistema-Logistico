@@ -22,8 +22,6 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
     const { data: sucursales } = useSucursal()
     const { data: metodosPago } = useMetodoPago()
 
-    console.log(transferencia)
-
     const formik = useFormik({
         initialValues: {
             emisor_sucursal_id: transferencia?.emisor_sucursal?.id || '',
@@ -35,12 +33,10 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
         },
         enableReinitialize: true,
         validationSchema: Yup.object({
-            emisor_sucursal_id: Yup.string().required('Requerido'),
-            receptor_sucursal_id: Yup.string().required('Requerido'),
-            metodo_pago_id: Yup.string().required('Requerido'),
-            delivery_status: Yup.string().required('Requerido'),
-            payment_status: Yup.string().required('Requerido'),
-            paqueteList: Yup.array().required('Requerido')
+            emisor_sucursal_id: Yup.string().required('Sucursal Emisora es requerido'),
+            receptor_sucursal_id: Yup.string().required('Sucursal Receptora es requerido'),
+            paqueteList: Yup.array().required('Lista de paquetes es requerido'),
+            metodo_pago_id: Yup.string().required('Método de Pago es requerido')
         }),
         onSubmit: async (values, { resetForm }) => {
             try {
@@ -162,11 +158,11 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                     </TextField>
 
                     <Divider />
-                    
-                    <PaqueteTableSelection formik={formik}/>
+                    <PaqueteTableSelection formik={formik} />
+
 
                     <Divider />
-                    
+
                     <Box display="flex" justifyContent="flex-end" gap={2}>
                         <Button variant="outlined" onClick={onClose}>
                             Cancelar

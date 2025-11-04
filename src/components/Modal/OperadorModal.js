@@ -63,6 +63,7 @@ export default function OperadorModal({ open, onClose, operador }) {
                     <RoleDropdow
                         value={formik.values.role_id}
                         onChange={(val) => formik.setFieldValue('role_id', val)}
+                        filter={[4]}
                     />
 
                     <TextField

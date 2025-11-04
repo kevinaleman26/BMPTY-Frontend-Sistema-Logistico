@@ -20,8 +20,6 @@ export default function ClienteModal({ open, onClose, cliente }) {
     const { data: tiposDoc } = useTipoDocumento()
     const { data: sucursales } = useSucursal()
 
-
-
     const formik = useFormik({
         initialValues: {
             full_name: cliente?.full_name || '',
@@ -115,6 +113,7 @@ export default function ClienteModal({ open, onClose, cliente }) {
                         error={formik.touched.document_type && Boolean(formik.errors.document_type)}
                         helperText={formik.touched.document_type && formik.errors.document_type}
                         fullWidth
+                        disabled={cliente ? true : false}
                     >
                         {tiposDoc?.map((item) => (
                             <MenuItem key={item.id} value={item.id}>
@@ -131,6 +130,7 @@ export default function ClienteModal({ open, onClose, cliente }) {
                         error={formik.touched.document && Boolean(formik.errors.document)}
                         helperText={formik.touched.document && formik.errors.document}
                         fullWidth
+                        disabled={cliente ? true : false}
                     />
 
                     <TextField

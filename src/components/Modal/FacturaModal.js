@@ -6,6 +6,7 @@ import { useClientesBasic } from '@/hooks/useClientesBasic'
 import { useMetodoPago } from '@/hooks/useMetodoPago'
 import { useMutateFactura } from '@/hooks/useMutateFactura'
 import { useSucursal } from '@/hooks/useSucursal'
+import { supabase } from '@/lib/supabase'
 import {
     Box, Button,
     Dialog,
@@ -19,7 +20,7 @@ import {
     Typography
 } from '@mui/material'
 import { useFormik } from 'formik'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import * as Yup from 'yup'
 
 function flattenProveedorPaquetes(detalle) {
@@ -39,10 +40,18 @@ function flattenProveedorPaquetes(detalle) {
 }
 
 export default function FacturaModal({ open, onClose, factura }) {
+    const [sucursalSelected, setSucursalSelected] = useState(0)
     const { data: sucursales } = useSucursal()
     const { data: metodosPago } = useMetodoPago()
-    const { data: clientes } = useClientesBasic()
+    const { data: clientes } = useClientesBasic(sucursalSelected)
     const { createFactura, updateFactura } = useMutateFactura()
+    const [clientDetail, setClientDetail] = useState(0)
+
+
+    const getClient = async (clientId) => {
+        const { data, error } = await supabase.from('cliente').select('*').single().eq('id', clientId)
+        return data
+    }
 
     const formik = useFormik({
         initialValues: {
@@ -71,7 +80,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                 const descuento = factura?.descuento || 0
                 const otros = factura?.otros || 0
                 const impuestos = factura?.impuestos || 0
-                const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + (Number(p.precio) || 0), 0)
+                const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + ((Number(p.precio) || 0)), 0)
                 const totalCalc = subtotalCalc - descuento + otros + impuestos
 
                 if (factura) {
@@ -106,11 +115,26 @@ export default function FacturaModal({ open, onClose, factura }) {
         }
     })
 
+    useEffect(() => {
+        const funct = async () => {
+            if (formik.values.cliente_id) {
+                setClientDetail(await getClient(formik.values.cliente_id))
+            }
+        }
+        funct()
+    }, [formik.values.cliente_id])
+
+    useEffect(() => {
+        if (formik.values.sucursal_id) {
+            setSucursalSelected(formik.values.sucursal_id)
+        }
+    }, [formik.values.sucursal_id])
+
     // Calcular totales visibles
     const subtotal = useMemo(() => {
         if (!formik.values.paqueteList?.length) return 0
-        return formik.values.paqueteList.reduce((acc, p) => acc + (Number(p.precio) || 0), 0)
-    }, [formik.values.paqueteList])
+        return formik.values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail.tarifa || 1)), 0)
+    }, [formik.values.paqueteList, formik.values.cliente_id])
 
     const descuento = factura?.descuento || 0
     const otros = factura?.otros || 0
@@ -201,11 +225,13 @@ export default function FacturaModal({ open, onClose, factura }) {
 
                     {/* Selector de paquetes */}
                     <Box>
-                        <PaqueteTableSelection formik={formik} />
+                        {
+                            clientDetail ? (<PaqueteTableSelection formik={formik} />) : null
+                        }
                     </Box>
 
                     {/* Resumen calculado */}
-                    <Box sx={{ px: 2, borderRadius: 2 }}>
+                    <Box sx={{ px: 1, borderRadius: 2 }}>
                         <Typography variant="subtitle1" gutterBottom>Resumen</Typography>
                         <Box display="grid" gridTemplateColumns="1fr auto" rowGap={1}>
                             <Typography variant="body2">Subtotal</Typography>
