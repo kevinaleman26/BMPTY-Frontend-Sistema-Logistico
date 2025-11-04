@@ -91,19 +91,20 @@ export default function FacturaTable({ onEdit }) {
             headerName: 'Acción',
             width: 120,
             renderCell: (params) => {
-                const { sucursal, factura_detalle, subtotal, descuento, otros, impuestos, total } = params.row
+                const { id, sucursal, factura_detalle, subtotal, descuento, otros, impuestos, total, cliente } = params.row
                 const paquetes = factura_detalle.map(item => {
                     const { proveedor_paquetes } = item;
                     const respuesta = {
                         ...proveedor_paquetes,
                         id: item.id,
                         tracking: item.paquete_id,
-                        precioLb: proveedor_paquetes.precio,
-                        total: proveedor_paquetes.precio
+                        precioLb: cliente.tarifa,
+                        total: (proveedor_paquetes.peso * cliente.tarifa)
                     };
                     return respuesta;
                 })
                 const datosFactura = {
+                    nombreCliente: cliente.full_name,
                     ruc: sucursal.ruc,
                     direccion: sucursal.address,
                     sucursal: sucursal.name,
@@ -121,7 +122,7 @@ export default function FacturaTable({ onEdit }) {
                     </IconButton>
                     <PDFDownloadLink
                         document={<NotaEntregaPDF data={datosFactura} />}
-                        fileName="factura.pdf"
+                        fileName={`BM${sucursal.id}-Factura${id}-${cliente.full_name}`}
                     >
                         <IconButton>
                             <DescriptionIcon sx={{ color: '#fff' }} />

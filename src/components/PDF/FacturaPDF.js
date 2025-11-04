@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
         borderBottomStyle: 'solid',
         paddingVertical: 4,
         backgroundColor: '#1256c4',
-        color:'#fff'
+        color: '#fff'
     },
     tbodyRow: {
         flexDirection: 'row',
@@ -138,6 +138,11 @@ export default function NotaEntregaPDF({ data }) {
                     <View style={styles.metaRow}>
                         <Text style={styles.metaText}>
                             Sucursal: {data?.sucursal || ''}
+                        </Text>
+                    </View>
+                    <View style={styles.metaRow}>
+                        <Text style={styles.metaText}>
+                            Nombre del Cliente: {data?.nombreCliente || ''}
                         </Text>
                     </View>
                 </View>

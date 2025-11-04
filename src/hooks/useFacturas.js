@@ -36,7 +36,7 @@ export const useFacturas = () => {
                 created_at,
                 sucursal:sucursal_id ( id, name, ruc, address ),
                 metodo_pago:metodo_pago ( id, name ),
-                cliente:cliente_id ( id, full_name, email ),
+                cliente:cliente_id ( id, full_name, email, tarifa ),
                 factura_detalle (
                     id,
                     paquete_id,

@@ -80,7 +80,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                 const descuento = factura?.descuento || 0
                 const otros = factura?.otros || 0
                 const impuestos = factura?.impuestos || 0
-                const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + ((Number(p.precio) || 0)), 0)
+                const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail.tarifa || 1)), 0)
                 const totalCalc = subtotalCalc - descuento + otros + impuestos
 
                 if (factura) {
@@ -176,11 +176,20 @@ export default function FacturaModal({ open, onClose, factura }) {
                         helperText={formik.touched.cliente_id && formik.errors.cliente_id}
                         fullWidth
                     >
-                        {clientes?.map((c) => (
-                            <MenuItem key={c.id} value={c.id}>
-                                {c.full_name ? `${c.full_name} • ${c.email}` : c.email}
-                            </MenuItem>
-                        ))}
+
+                        {
+                            clientes && clientes.length > 0 ? (
+                                clientes?.map((c) => (
+                                    <MenuItem key={c.id} value={c.id}>
+                                        {c.full_name ? `${c.full_name} • ${c.email}` : c.email}
+                                    </MenuItem>
+                                ))
+                            ) : (
+                                <MenuItem value="">
+                                    <em>{'Seleccione una sucursal primero'}</em>
+                                </MenuItem>
+                            )
+                        }
                     </TextField>
 
                     <TextField
