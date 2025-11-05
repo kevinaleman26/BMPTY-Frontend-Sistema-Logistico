@@ -29,7 +29,8 @@ export default function ClienteModal({ open, onClose, cliente }) {
             password: '',
             confirmPassword: '',
             document_type: cliente?.document_type || '',
-            sucursal_id: cliente?.sucursal_id || ''
+            sucursal_id: cliente?.sucursal_id || '',
+            tarifa: cliente?.tarifa || ''
         },
         enableReinitialize: true,
         validationSchema: Yup.object({
@@ -51,7 +52,7 @@ export default function ClienteModal({ open, onClose, cliente }) {
                 if (cliente) {
                     delete values.confirmPassword
                     delete values.password
-                    values["tarifa"] = tarifa
+                    values["tarifa"] = values.tarifa
                     await updateCliente.mutateAsync({ id: cliente.id, ...values })
                 } else {
                     values["tarifa"] = tarifa
@@ -153,6 +154,21 @@ export default function ClienteModal({ open, onClose, cliente }) {
                         helperText={formik.touched.email && formik.errors.email}
                         fullWidth
                     />
+
+                    {
+                        cliente && (
+                            <TextField
+                                label="Tarifa"
+                                name="tarifa"
+                                type="tarifa"
+                                value={formik.values.tarifa}
+                                onChange={formik.handleChange}
+                                error={formik.touched.tarifa && Boolean(formik.errors.tarifa)}
+                                helperText={formik.touched.tarifa && formik.errors.tarifa}
+                                fullWidth
+                            />
+                        )
+                    }
 
                     {!cliente && (
                         <>
