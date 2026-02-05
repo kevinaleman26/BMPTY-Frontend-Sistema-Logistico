@@ -37,7 +37,7 @@ const LoginForm = () => {
           onSubmit={handleLogin}
       >
           {({ values, handleChange, isSubmitting }) => (
-              <Form style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <Form style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   <TextField
                       label="Correo electrónico"
                       name="email"
@@ -46,8 +46,6 @@ const LoginForm = () => {
                       onChange={handleChange}
                       required
                       fullWidth
-                      InputLabelProps={{ style: { color: '#ccc' } }}
-                      InputProps={{ style: { color: '#fff' } }}
                   />
 
                   <TextField
@@ -58,16 +56,27 @@ const LoginForm = () => {
                       onChange={handleChange}
                       required
                       fullWidth
-                      InputLabelProps={{ style: { color: '#ccc' } }}
-                      InputProps={{ style: { color: '#fff' } }}
                   />
 
-                  <Button type="submit" variant="contained" color="primary" disabled={isSubmitting}>
+                  <Button
+                      type="submit"
+                      variant="contained"
+                      disabled={isSubmitting}
+                      sx={{ py: 1.5 }}
+                  >
                       Iniciar sesión
                   </Button>
 
-                  {status?.success && <Typography color="green">{status.success}</Typography>}
-                  {status?.error && <Typography color="error">{status.error}</Typography>}
+                  {status?.success && (
+                      <Typography sx={{ color: 'success.main' }}>
+                          {status.success}
+                      </Typography>
+                  )}
+                  {status?.error && (
+                      <Typography color="error">
+                          {status.error}
+                      </Typography>
+                  )}
               </Form>
           )}
       </Formik>

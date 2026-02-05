@@ -1,6 +1,7 @@
 'use client'
 
 import { usePaquetes } from '@/hooks/usePaquetes'
+import { dataGridStyles } from '@/styles/dataGridStyles'
 import { Box, CircularProgress } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -61,38 +62,7 @@ export default function PaqueteTable({ onEdit }) {
                             router.push(`?${params.toString()}`)
                         }}
                         disableRowSelectionOnClick
-                        sx={{
-                            backgroundColor: '#111',
-                            color: '#fff',
-                            borderColor: '#444',
-                            '& .MuiDataGrid-columnHeaders': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold'
-                            },
-                            '& .MuiDataGrid-row:hover': {
-                                backgroundColor: '#222 !important'
-                            },
-                            '& .MuiDataGrid-footerContainer': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold',
-                                borderTop: '1px solid #444',
-                            },
-                            '& .MuiTablePagination-root': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-input .MuiSelect-select': {
-                                color: '#fff',
-                                backgroundColor: 'transparent',
-                            },
-                            '& .MuiTablePagination-actions .MuiIconButton-root': {
-                                color: '#fff',
-                            },
-                        }}
+                        sx={dataGridStyles}
                     />
                 )}
             </Box>

@@ -3,6 +3,7 @@
 
 import NotaEntregaPDF from '@/components/PDF/FacturaPDF'
 import { useFacturas } from '@/hooks/useFacturas'
+import { dataGridStyles } from '@/styles/dataGridStyles'
 import DescriptionIcon from '@mui/icons-material/Description'
 import EditIcon from '@mui/icons-material/Edit'
 import { Box, Chip, CircularProgress, IconButton } from '@mui/material'
@@ -160,38 +161,7 @@ export default function FacturaTable({ onEdit }) {
                             router.push(`?${params.toString()}`)
                         }}
                         disableRowSelectionOnClick
-                        sx={{
-                            backgroundColor: '#111',
-                            color: '#fff',
-                            borderColor: '#444',
-                            '& .MuiDataGrid-columnHeaders': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold'
-                            },
-                            '& .MuiDataGrid-row:hover': {
-                                backgroundColor: '#222 !important'
-                            },
-                            '& .MuiDataGrid-footerContainer': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold',
-                                borderTop: '1px solid #444',
-                            },
-                            '& .MuiTablePagination-root': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-input .MuiSelect-select': {
-                                color: '#fff',
-                                backgroundColor: 'transparent',
-                            },
-                            '& .MuiTablePagination-actions .MuiIconButton-root': {
-                                color: '#fff',
-                            },
-                        }}
+                        sx={dataGridStyles}
                     />
                 )}
             </Box>

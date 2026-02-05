@@ -40,8 +40,8 @@ export default function OperadorModal({ open, onClose, operador }) {
 
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{operador ? 'Editar Operador' : 'Crear Operador'}</DialogTitle>
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
+            <DialogTitle sx={{borderBottom:"1px solid",borderColor:"divider"}}>{operador ? 'Editar Operador' : 'Crear Operador'}</DialogTitle>
             <DialogContent>
                 <Box
                     component="form"

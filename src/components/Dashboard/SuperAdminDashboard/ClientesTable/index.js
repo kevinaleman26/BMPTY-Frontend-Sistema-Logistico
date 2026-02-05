@@ -1,5 +1,7 @@
 // src/components/Table/ClientesTable/index.js
 'use client'
+import { dataGridStyles } from '@/styles/dataGridStyles'
+
 
 import { supabase } from '@/lib/supabase'
 import { Box, Chip, CircularProgress, Typography } from '@mui/material'
@@ -92,38 +94,7 @@ export default function ClientesTable() {
                     columns={columns}
                     getRowId={(row) => row.id} // UUID
                     disableRowSelectionOnClick
-                    sx={{
-                        backgroundColor: '#111',
-                        color: '#fff',
-                        borderColor: '#444',
-                        '& .MuiDataGrid-columnHeaders': {
-                            backgroundColor: '#222',
-                            color: '#000',
-                            fontWeight: 'bold'
-                        },
-                        '& .MuiDataGrid-row:hover': {
-                            backgroundColor: '#222 !important'
-                        },
-                        '& .MuiDataGrid-footerContainer': {
-                            backgroundColor: '#222',
-                            color: '#000',
-                            fontWeight: 'bold',
-                            borderTop: '1px solid #444',
-                        },
-                        '& .MuiTablePagination-root': {
-                            color: '#fff',
-                        },
-                        '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                            color: '#fff',
-                        },
-                        '& .MuiTablePagination-input .MuiSelect-select': {
-                            color: '#fff',
-                            backgroundColor: 'transparent',
-                        },
-                        '& .MuiTablePagination-actions .MuiIconButton-root': {
-                            color: '#fff',
-                        },
-                    }}
+                    sx={dataGridStyles}
                 />
             )}
         </Box>

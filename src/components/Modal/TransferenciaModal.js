@@ -68,8 +68,8 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
     })
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-            <DialogTitle>
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
+            <DialogTitle sx={{borderBottom:"1px solid",borderColor:"divider"}}>
                 {transferencia ? 'Editar Transferencia' : 'Crear Transferencia'}
             </DialogTitle>
             <DialogContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

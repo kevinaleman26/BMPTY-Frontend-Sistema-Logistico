@@ -47,8 +47,8 @@ export default function SucursalModal({ open, onClose, sucursal }) {
 
     return (
         <>
-            <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-                <DialogTitle>{sucursal ? 'Editar Sucursal' : 'Crear Sucursal'}</DialogTitle>
+            <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
+                <DialogTitle sx={{borderBottom:"1px solid",borderColor:"divider"}}>{sucursal ? 'Editar Sucursal' : 'Crear Sucursal'}</DialogTitle>
                 <DialogContent>
                     <Box
                         component="form"
