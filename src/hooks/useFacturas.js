@@ -13,13 +13,15 @@ export const useFacturas = () => {
     const page = Number(searchParams.get('page')) || 1
     const limit = Number(searchParams.get('limit')) || 10
 
-    // Filtros iniciales (luego agregamos más si quieres)
+    // Filtros
     const numero = searchParams.get('numero') || ''
     const payment_status = searchParams.get('payment_status') || ''
     const delivery_status = searchParams.get('delivery_status') || ''
+    const fecha_desde = searchParams.get('fecha_desde') || ''
+    const fecha_hasta = searchParams.get('fecha_hasta') || ''
 
     const offset = (page - 1) * limit
-    const queryKey = ['facturas', { page, limit, numero, payment_status, delivery_status }]
+    const queryKey = ['facturas', { page, limit, numero, payment_status, delivery_status, fecha_desde, fecha_hasta }]
 
     const queryFn = async () => {
         let query = supabase
@@ -49,9 +51,11 @@ export const useFacturas = () => {
             .range(offset, offset + limit - 1)
 
         if (session.role.id !== 1) query = query.eq("sucursal_id", session.sucursal.id)
-        if (numero) query = query.ilike('numero', `%${numero}%`)
-        if (payment_status) query = query.eq('payment_status', payment_status)
-        if (delivery_status) query = query.eq('delivery_status', delivery_status)
+        if (numero) query = query.eq('id', Number(numero))
+        if (payment_status) query = query.eq('payment_status', payment_status === 'true')
+        if (delivery_status) query = query.eq('delivery_status', delivery_status === 'true')
+        if (fecha_desde) query = query.gte('created_at', fecha_desde)
+        if (fecha_hasta) query = query.lte('created_at', `${fecha_hasta}T23:59:59`)
 
         const { data, error, count } = await query
         if (error) throw error
@@ -70,6 +74,8 @@ export const useFacturas = () => {
         numero,
         payment_status,
         delivery_status,
+        fecha_desde,
+        fecha_hasta,
         count: data?.count || 0
     }
 }
