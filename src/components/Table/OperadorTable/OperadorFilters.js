@@ -2,12 +2,13 @@
 'use client'
 
 import { Box, TextField } from '@mui/material'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useDebounce } from 'use-debounce'
 
 export default function OperadorFilters() {
     const router = useRouter()
+    const pathname = usePathname()
     const searchParams = useSearchParams()
 
     const [email, setEmail] = useState(searchParams.get('email') || '')
@@ -30,27 +31,41 @@ export default function OperadorFilters() {
             params.delete('full_name')
         }
 
-        params.set('page', 1)
-        router.push(`?${params.toString()}`)
-    }, [debouncedEmail, debouncedFullName])
+        params.set('page', '1')
+        router.push(`${pathname}?${params.toString()}`)
+    }, [debouncedEmail, debouncedFullName, pathname, router, searchParams])
 
     return (
-        <Box display="flex" gap={2} mb={2}>
+        <Box
+            className="slide-up"
+            sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 2,
+                mb: 3,
+                p: 2.5,
+                backgroundColor: 'surface.elevated',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: '8px',
+                opacity: 0,
+                animationFillMode: 'forwards',
+                animationDelay: '0.1s',
+            }}
+        >
             <TextField
                 label="Nombre completo"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                fullWidth
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                InputProps={{ style: { color: '#fff' } }}
+                size="small"
+                sx={{ minWidth: 250, flex: 1 }}
             />
             <TextField
                 label="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                fullWidth
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                InputProps={{ style: { color: '#fff' } }}
+                size="small"
+                sx={{ minWidth: 250, flex: 1 }}
             />
         </Box>
     )
