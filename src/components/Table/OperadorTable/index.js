@@ -14,6 +14,19 @@ export default function OperadorTable({ onEdit }) {
     const searchParams = useSearchParams()
     const { data, count, isLoading, page, limit } = useOperadores()
 
+    const handlePageChange = (newPage) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('page', newPage + 1)
+        router.push(`?${params.toString()}`)
+    }
+
+    const handlePageSizeChange = (newLimit) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('limit', newLimit)
+        params.set('page', 1)
+        router.push(`?${params.toString()}`)
+    }
+
     const columns = [
         { field: 'full_name', headerName: 'Nombre', flex: 1 },
         { field: 'email', headerName: 'Email', flex: 1 },
@@ -21,10 +34,10 @@ export default function OperadorTable({ onEdit }) {
             field: 'role',
             headerName: 'Rol',
             flex: 1,
-            renderCell: (params) => {
-                const roleName = params.row.role?.name || 'Sin rol'
-                return <Chip label={roleName} color="primary" />
-            }
+            valueGetter: (value, row) => row.role?.name || 'Sin rol',
+            renderCell: (params) => (
+                <Chip label={params.value} color="primary" size="small" />
+            )
         },
         {
             field: 'accion',
@@ -39,14 +52,17 @@ export default function OperadorTable({ onEdit }) {
     ]
 
     return (
-        <Box width="100%">
+        <Box sx={{ width: '100%' }}>
+            {/* Filtros */}
             <OperadorFilters />
-            <Box height={500}>
+
+            {/* Tabla */}
+            <Box sx={{ height: 500, width: '100%' }}>
                 {isLoading ? (
                     <CircularProgress />
                 ) : (
                     <DataGrid
-                        rows={data?.data || []}
+                        rows={data.data || []}
                         columns={columns}
                         rowCount={count || 0}
                         paginationMode="server"
@@ -55,13 +71,9 @@ export default function OperadorTable({ onEdit }) {
                             page: Math.max(page - 1, 0),
                             pageSize: limit
                         }}
-                        onPaginationModelChange={({ page: newPage, pageSize: newPageSize }) => {
-                            const params = new URLSearchParams(searchParams.toString())
-
-                            params.set('page', newPage + 1) // el DataGrid usa 0-indexed
-                            params.set('limit', newPageSize)
-
-                            router.push(`?${params.toString()}`)
+                        onPaginationModelChange={({ page, pageSize }) => {
+                            handlePageChange(page)
+                            handlePageSizeChange(pageSize)
                         }}
                         disableRowSelectionOnClick
                         sx={dataGridStyles}

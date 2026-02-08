@@ -17,60 +17,72 @@ export default function FacturaTable({ onEdit }) {
     const searchParams = useSearchParams()
     const { data, count, isLoading, page, limit } = useFacturas()
 
+    const handlePageChange = (newPage) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('page', newPage + 1)
+        router.push(`?${params.toString()}`)
+    }
+
+    const handlePageSizeChange = (newLimit) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('limit', newLimit)
+        params.set('page', 1)
+        router.push(`?${params.toString()}`)
+    }
+
     const columns = [
         { field: 'id', headerName: 'Número', width: 80 },
-
         {
             field: 'cliente',
             headerName: 'Cliente',
             flex: 1,
-            renderCell: (params) =>
-                params.row.cliente?.full_name || params.row.cliente?.email || '—'
+            valueGetter: (value, row) =>
+                row.cliente?.full_name || row.cliente?.email || '—',
+            renderCell: (params) => params.value
         },
-
         {
             field: 'sucursal',
             headerName: 'Sucursal',
             flex: 1,
             minWidth: 160,
+            valueGetter: (value, row) => row.sucursal?.name || '—',
             renderCell: (params) => (
-                <Chip label={params.row.sucursal?.name || '—'} color="primary" />
+                <Chip label={params.value} color="primary" size="small" />
             )
         },
-
         {
             field: 'metodo_pago',
             headerName: 'Método de pago',
             flex: 1,
+            valueGetter: (value, row) => row.metodo_pago?.name || '—',
             renderCell: (params) => (
-                <Chip label={params.row.metodo_pago?.name || '—'} color="primary" />
+                <Chip label={params.value} color="primary" size="small" />
             )
         },
-
         {
             field: 'delivery_status',
             headerName: 'Estado Entrega',
             flex: 1,
             renderCell: (params) => (
                 <Chip
-                    label={params.row.delivery_status ? 'Entregado' : 'Pendiente'}
-                    color={params.row.delivery_status ? 'success' : 'error'}
+                    label={params.value ? 'Entregado' : 'Pendiente'}
+                    color={params.value ? 'success' : 'error'}
+                    size="small"
                 />
             )
         },
-
         {
             field: 'payment_status',
             headerName: 'Estado Pago',
             flex: 1,
             renderCell: (params) => (
                 <Chip
-                    label={params.row.payment_status ? 'Pagado' : 'Pendiente'}
-                    color={params.row.payment_status ? 'success' : 'error'}
+                    label={params.value ? 'Pagado' : 'Pendiente'}
+                    color={params.value ? 'success' : 'error'}
+                    size="small"
                 />
             )
         },
-
         {
             field: 'total',
             headerName: 'Total',
@@ -78,7 +90,6 @@ export default function FacturaTable({ onEdit }) {
             renderCell: ({ value }) =>
                 value != null ? `$${Number(value).toFixed(2)}` : '—'
         },
-
         {
             field: 'created_at',
             headerName: 'Fecha',
@@ -86,7 +97,6 @@ export default function FacturaTable({ onEdit }) {
             renderCell: ({ value }) =>
                 value ? new Date(value).toLocaleString() : '—'
         },
-
         {
             field: 'accion',
             headerName: 'Acción',
@@ -109,7 +119,7 @@ export default function FacturaTable({ onEdit }) {
                     ruc: sucursal.ruc,
                     direccion: sucursal.address,
                     sucursal: sucursal.name,
-                    logoUrl: '/logo.png', // agrega aquí la ruta o base64 del logo
+                    logoUrl: '/logo.png',
                     items: paquetes,
                     subtotal,
                     descuento,
@@ -117,35 +127,37 @@ export default function FacturaTable({ onEdit }) {
                     itbms: impuestos,
                     total
                 };
-                return (<>
-                    <IconButton onClick={() => onEdit(params.row)}>
-                        <EditIcon sx={{ color: '#fff' }} />
-                    </IconButton>
-                    <PDFDownloadLink
-                        document={<NotaEntregaPDF data={datosFactura} />}
-                        fileName={`BM${sucursal.id}-Factura${id}-${cliente.full_name}`}
-                    >
-                        <IconButton>
-                            <DescriptionIcon sx={{ color: '#fff' }} />
+                return (
+                    <>
+                        <IconButton onClick={() => onEdit(params.row)}>
+                            <EditIcon sx={{ color: '#fff' }} />
                         </IconButton>
-                    </PDFDownloadLink>
-                </>)
+                        <PDFDownloadLink
+                            document={<NotaEntregaPDF data={datosFactura} />}
+                            fileName={`BM${sucursal.id}-Factura${id}-${cliente.full_name}`}
+                        >
+                            <IconButton>
+                                <DescriptionIcon sx={{ color: '#fff' }} />
+                            </IconButton>
+                        </PDFDownloadLink>
+                    </>
+                )
             }
         }
     ]
 
-
     return (
-        <Box width="100%">
+        <Box sx={{ width: '100%' }}>
+            {/* Filtros */}
             <FacturaFilters />
 
-            <Box height={520}>
+            {/* Tabla */}
+            <Box sx={{ height: 500, width: '100%' }}>
                 {isLoading ? (
                     <CircularProgress />
                 ) : (
                     <DataGrid
-                        rows={data?.data || []}
-                        getRowId={(row) => row.id}
+                        rows={data.data || []}
                         columns={columns}
                         rowCount={count || 0}
                         paginationMode="server"
@@ -154,11 +166,9 @@ export default function FacturaTable({ onEdit }) {
                             page: Math.max(page - 1, 0),
                             pageSize: limit
                         }}
-                        onPaginationModelChange={({ page: newPage, pageSize }) => {
-                            const params = new URLSearchParams(searchParams.toString())
-                            params.set('page', String(newPage + 1))
-                            params.set('limit', String(pageSize))
-                            router.push(`?${params.toString()}`)
+                        onPaginationModelChange={({ page, pageSize }) => {
+                            handlePageChange(page)
+                            handlePageSizeChange(pageSize)
                         }}
                         disableRowSelectionOnClick
                         sx={dataGridStyles}

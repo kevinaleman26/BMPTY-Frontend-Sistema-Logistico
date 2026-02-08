@@ -3,37 +3,25 @@
 
 import { Box, TextField } from '@mui/material'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { useDebounce } from 'use-debounce'
+import { useDebouncedCallback } from 'use-debounce'
 
 export default function OperadorFilters() {
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
 
-    const [email, setEmail] = useState(searchParams.get('email') || '')
-    const [fullName, setFullName] = useState(searchParams.get('full_name') || '')
-
-    const [debouncedEmail] = useDebounce(email, 500)
-    const [debouncedFullName] = useDebounce(fullName, 500)
-
-    useEffect(() => {
+    const handleFilterChange = useDebouncedCallback((key, value) => {
         const params = new URLSearchParams(searchParams.toString())
-        if (debouncedEmail) {
-            params.set('email', debouncedEmail)
-        } else {
-            params.delete('email')
-        }
 
-        if (debouncedFullName) {
-            params.set('full_name', debouncedFullName)
+        if (value) {
+            params.set(key, value)
         } else {
-            params.delete('full_name')
+            params.delete(key)
         }
 
         params.set('page', '1')
         router.push(`${pathname}?${params.toString()}`)
-    }, [debouncedEmail, debouncedFullName, pathname, router, searchParams])
+    }, 300)
 
     return (
         <Box
@@ -55,15 +43,16 @@ export default function OperadorFilters() {
         >
             <TextField
                 label="Nombre completo"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                defaultValue={searchParams.get('full_name') || ''}
+                onChange={(e) => handleFilterChange('full_name', e.target.value)}
                 size="small"
                 sx={{ minWidth: 250, flex: 1 }}
             />
+
             <TextField
                 label="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                defaultValue={searchParams.get('email') || ''}
+                onChange={(e) => handleFilterChange('email', e.target.value)}
                 size="small"
                 sx={{ minWidth: 250, flex: 1 }}
             />

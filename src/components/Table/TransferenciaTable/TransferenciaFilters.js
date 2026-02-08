@@ -46,10 +46,11 @@ export default function TransferenciaFilters() {
             }}
         >
             <TextField
-                label="ID Factura"
+                label="ID Transferencia"
                 defaultValue={searchParams.get('factura_id') || ''}
                 onChange={(e) => handleFilterChange('factura_id', e.target.value)}
                 size="small"
+                type="number"
                 sx={{ minWidth: 180 }}
             />
 
