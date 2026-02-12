@@ -55,8 +55,8 @@ export default function PaqueteModal({ open, onClose, paquete }) {
     })
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{paquete ? 'Editar Paquete' : 'Crear Paquete'}</DialogTitle>
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
+            <DialogTitle sx={{borderBottom:"1px solid",borderColor:"divider"}}>{paquete ? 'Editar Paquete' : 'Crear Paquete'}</DialogTitle>
             <DialogContent>
                 <Box component="form" onSubmit={formik.handleSubmit} sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <TextField label="Factura ID" name="factura_id" value={formik.values.factura_id} onChange={formik.handleChange} fullWidth />

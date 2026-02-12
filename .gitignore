@@ -31,7 +31,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# Allow .env.example to be committed
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +45,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code
+.claude/
+.agents/
+# .mcp.json - Shared with team for consistent MCP server configuration
+.dev-server.pid
+.improvements/
+.interface-design/
+
+
+# backup files
+*.bak

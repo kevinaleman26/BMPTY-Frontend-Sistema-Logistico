@@ -1,6 +1,7 @@
 'use client'
 
 import { useTransferencias } from '@/hooks/useTransferencias'
+import { dataGridStyles } from '@/styles/dataGridStyles'
 import EditIcon from '@mui/icons-material/Edit'
 import { Box, Chip, CircularProgress, IconButton } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
@@ -10,13 +11,8 @@ import TransferenciaFilters from './TransferenciaFilters'
 export default function TransferenciaTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const {
-        data,
-        count,
-        isLoading,
-        page,
-        limit
-    } = useTransferencias()
+
+    const { data, count, isLoading, page, limit } = useTransferencias()
 
     const handlePageChange = (newPage) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -31,56 +27,76 @@ export default function TransferenciaTable({ onEdit }) {
         router.push(`?${params.toString()}`)
     }
 
+    const formatDate = (dateString) => {
+        if (!dateString) return '—'
+        return new Date(dateString).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+    }
+
     const columns = [
-        { field: 'id', headerName: 'Factura ID', flex: 1 },
+        { field: 'id', headerName: 'ID', width: 80 },
         {
-            field: 'emisor_sucursal.name',
+            field: 'emisor_sucursal',
             headerName: 'Sucursal Emisora',
             flex: 1,
+            valueGetter: (value, row) => row.emisor_sucursal?.name || '—',
             renderCell: (params) => (
-                <Chip label={params.row.emisor_sucursal?.name || '—'} color="primary" />
+                <Chip label={params.value} color="primary" size="small" />
             )
         },
         {
-            field: 'receptor_sucursal.name',
+            field: 'receptor_sucursal',
             headerName: 'Sucursal Receptora',
             flex: 1,
+            valueGetter: (value, row) => row.receptor_sucursal?.name || '—',
             renderCell: (params) => (
-                <Chip label={params.row.receptor_sucursal?.name || '—'} color="primary" />
+                <Chip label={params.value} color="primary" size="small" />
             )
         },
         {
-            field: 'metodo_pago.name',
+            field: 'metodo_pago',
             headerName: 'Método de Pago',
             flex: 1,
+            valueGetter: (value, row) => row.metodo_pago?.name || '—',
             renderCell: (params) => (
-                <Chip label={params.row.metodo_pago?.name || '—'} color="primary" />
+                <Chip label={params.value} color="primary" size="small" />
             )
         },
-
         {
             field: 'delivery_status',
             headerName: 'Estado Entrega',
-            flex: 1,
+            width: 140,
             renderCell: (params) => (
                 <Chip
-                    label={params.row.delivery_status ? 'Entregado' : 'Pendiente'}
-                    color={params.row.delivery_status ? 'success' : 'error'}
+                    label={params.value ? 'Entregado' : 'Pendiente'}
+                    color={params.value ? 'success' : 'error'}
+                    size="small"
                 />
             )
         },
         {
             field: 'payment_status',
             headerName: 'Estado Pago',
-            flex: 1,
+            width: 140,
             renderCell: (params) => (
                 <Chip
-                    label={params.row.payment_status ? 'Pagado' : 'Pendiente'}
-                    color={params.row.payment_status ? 'success' : 'error'}
+                    label={params.value ? 'Pagado' : 'Pendiente'}
+                    color={params.value ? 'success' : 'error'}
+                    size="small"
                 />
             )
         },
-        { field: 'created_at', headerName: 'Creado en', flex: 1 },
+        {
+            field: 'created_at',
+            headerName: 'Creado en',
+            flex: 1,
+            renderCell: (params) => formatDate(params.value)
+        },
         {
             field: 'accion',
             headerName: 'Acción',
@@ -95,14 +111,17 @@ export default function TransferenciaTable({ onEdit }) {
 
 
     return (
-        <Box width="100%">
+        <Box sx={{ width: '100%' }}>
+            {/* Filtros */}
             <TransferenciaFilters />
-            <Box height={500}>
+
+            {/* Tabla */}
+            <Box sx={{ height: 500, width: '100%' }}>
                 {isLoading ? (
                     <CircularProgress />
                 ) : (
                     <DataGrid
-                        rows={data?.data || []}
+                        rows={data.data || []}
                         columns={columns}
                         rowCount={count || 0}
                         paginationMode="server"
@@ -115,40 +134,8 @@ export default function TransferenciaTable({ onEdit }) {
                             handlePageChange(page)
                             handlePageSizeChange(pageSize)
                         }}
-                        getRowId={(row) => row.id}
                         disableRowSelectionOnClick
-                        sx={{
-                            backgroundColor: '#111',
-                            color: '#fff',
-                            borderColor: '#444',
-                            '& .MuiDataGrid-columnHeaders': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold'
-                            },
-                            '& .MuiDataGrid-row:hover': {
-                                backgroundColor: '#222 !important'
-                            },
-                            '& .MuiDataGrid-footerContainer': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold',
-                                borderTop: '1px solid #444',
-                            },
-                            '& .MuiTablePagination-root': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-input .MuiSelect-select': {
-                                color: '#fff',
-                                backgroundColor: 'transparent',
-                            },
-                            '& .MuiTablePagination-actions .MuiIconButton-root': {
-                                color: '#fff',
-                            },
-                        }}
+                        sx={dataGridStyles}
                     />
                 )}
             </Box>

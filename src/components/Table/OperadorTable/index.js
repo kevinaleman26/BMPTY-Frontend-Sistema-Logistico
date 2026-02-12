@@ -2,6 +2,7 @@
 'use client'
 
 import { useOperadores } from '@/hooks/useOperadores'
+import { dataGridStyles } from '@/styles/dataGridStyles'
 import EditIcon from '@mui/icons-material/Edit'
 import { Box, Chip, CircularProgress, IconButton } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
@@ -13,6 +14,19 @@ export default function OperadorTable({ onEdit }) {
     const searchParams = useSearchParams()
     const { data, count, isLoading, page, limit } = useOperadores()
 
+    const handlePageChange = (newPage) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('page', newPage + 1)
+        router.push(`?${params.toString()}`)
+    }
+
+    const handlePageSizeChange = (newLimit) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('limit', newLimit)
+        params.set('page', 1)
+        router.push(`?${params.toString()}`)
+    }
+
     const columns = [
         { field: 'full_name', headerName: 'Nombre', flex: 1 },
         { field: 'email', headerName: 'Email', flex: 1 },
@@ -20,10 +34,10 @@ export default function OperadorTable({ onEdit }) {
             field: 'role',
             headerName: 'Rol',
             flex: 1,
-            renderCell: (params) => {
-                const roleName = params.row.role?.name || 'Sin rol'
-                return <Chip label={roleName} color="primary" />
-            }
+            valueGetter: (value, row) => row.role?.name || 'Sin rol',
+            renderCell: (params) => (
+                <Chip label={params.value} color="primary" size="small" />
+            )
         },
         {
             field: 'accion',
@@ -38,14 +52,17 @@ export default function OperadorTable({ onEdit }) {
     ]
 
     return (
-        <Box width="100%">
+        <Box sx={{ width: '100%' }}>
+            {/* Filtros */}
             <OperadorFilters />
-            <Box height={500}>
+
+            {/* Tabla */}
+            <Box sx={{ height: 500, width: '100%' }}>
                 {isLoading ? (
                     <CircularProgress />
                 ) : (
                     <DataGrid
-                        rows={data?.data || []}
+                        rows={data.data || []}
                         columns={columns}
                         rowCount={count || 0}
                         paginationMode="server"
@@ -54,47 +71,12 @@ export default function OperadorTable({ onEdit }) {
                             page: Math.max(page - 1, 0),
                             pageSize: limit
                         }}
-                        onPaginationModelChange={({ page: newPage, pageSize: newPageSize }) => {
-                            const params = new URLSearchParams(searchParams.toString())
-
-                            params.set('page', newPage + 1) // el DataGrid usa 0-indexed
-                            params.set('limit', newPageSize)
-
-                            router.push(`?${params.toString()}`)
+                        onPaginationModelChange={({ page, pageSize }) => {
+                            handlePageChange(page)
+                            handlePageSizeChange(pageSize)
                         }}
                         disableRowSelectionOnClick
-                        sx={{
-                            backgroundColor: '#111',
-                            color: '#fff',
-                            borderColor: '#444',
-                            '& .MuiDataGrid-columnHeaders': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold'
-                            },
-                            '& .MuiDataGrid-row:hover': {
-                                backgroundColor: '#222 !important'
-                            },
-                            '& .MuiDataGrid-footerContainer': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold',
-                                borderTop: '1px solid #444',
-                            },
-                            '& .MuiTablePagination-root': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-input .MuiSelect-select': {
-                                color: '#fff',
-                                backgroundColor: 'transparent',
-                            },
-                            '& .MuiTablePagination-actions .MuiIconButton-root': {
-                                color: '#fff',
-                            },
-                        }}
+                        sx={dataGridStyles}
                     />
                 )}
             </Box>

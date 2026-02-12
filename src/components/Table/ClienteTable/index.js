@@ -1,6 +1,7 @@
 'use client'
 
 import { useClientes } from '@/hooks/useClientes'
+import { dataGridStyles } from '@/styles/dataGridStyles'
 import EditIcon from '@mui/icons-material/Edit'
 import { Box, Chip, CircularProgress, IconButton } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'
@@ -13,13 +14,27 @@ export default function ClienteTable({ onEdit }) {
 
     const { data, count, isLoading, page, limit } = useClientes()
 
+    const handlePageChange = (newPage) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('page', newPage + 1)
+        router.push(`?${params.toString()}`)
+    }
+
+    const handlePageSizeChange = (newLimit) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('limit', newLimit)
+        params.set('page', 1)
+        router.push(`?${params.toString()}`)
+    }
+
     const columns = [
         {
             field: 'sucursal',
             headerName: 'Sucursal',
             width: 160,
+            valueGetter: (value, row) => row.sucursal?.name || '—',
             renderCell: (params) => (
-                <Chip label={params.row.sucursal?.name || '—'} color="primary" size="small" />
+                <Chip label={params.value} color="primary" size="small" />
             )
         },
         { field: 'full_name', headerName: 'Nombre', flex: 1 },
@@ -28,12 +43,9 @@ export default function ClienteTable({ onEdit }) {
             field: 'tipo_documento',
             headerName: 'Tipo Documento',
             width: 160,
+            valueGetter: (value, row) => row.tipo_documento?.name || '—',
             renderCell: (params) => (
-                <Chip
-                    label={params.row.tipo_documento?.name || '—'}
-                    color="secondary"
-                    size="small"
-                />
+                <Chip label={params.value} color="secondary" size="small" />
             )
         },
         { field: 'document', headerName: 'Documento', width: 140 },
@@ -50,15 +62,17 @@ export default function ClienteTable({ onEdit }) {
     ]
 
     return (
-        <Box width="100%">
+        <Box sx={{ width: '100%' }}>
+            {/* Filtros */}
             <ClienteFilters />
 
-            <Box height={500}>
+            {/* Tabla */}
+            <Box sx={{ height: 500, width: '100%' }}>
                 {isLoading ? (
                     <CircularProgress />
                 ) : (
                     <DataGrid
-                        rows={data?.data || []}
+                        rows={data.data || []}
                         columns={columns}
                         rowCount={count || 0}
                         paginationMode="server"
@@ -67,47 +81,12 @@ export default function ClienteTable({ onEdit }) {
                             page: Math.max(page - 1, 0),
                             pageSize: limit
                         }}
-                        onPaginationModelChange={({ page: newPage, pageSize: newPageSize }) => {
-                            const params = new URLSearchParams(searchParams.toString())
-
-                            params.set('page', newPage + 1) // el DataGrid usa 0-indexed
-                            params.set('limit', newPageSize)
-
-                            router.push(`?${params.toString()}`)
+                        onPaginationModelChange={({ page, pageSize }) => {
+                            handlePageChange(page)
+                            handlePageSizeChange(pageSize)
                         }}
                         disableRowSelectionOnClick
-                        sx={{
-                            backgroundColor: '#111',
-                            color: '#fff',
-                            borderColor: '#444',
-                            '& .MuiDataGrid-columnHeaders': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold'
-                            },
-                            '& .MuiDataGrid-row:hover': {
-                                backgroundColor: '#222 !important'
-                            },
-                            '& .MuiDataGrid-footerContainer': {
-                                backgroundColor: '#222',
-                                color: '#000',
-                                fontWeight: 'bold',
-                                borderTop: '1px solid #444',
-                            },
-                            '& .MuiTablePagination-root': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                                color: '#fff',
-                            },
-                            '& .MuiTablePagination-input .MuiSelect-select': {
-                                color: '#fff',
-                                backgroundColor: 'transparent',
-                            },
-                            '& .MuiTablePagination-actions .MuiIconButton-root': {
-                                color: '#fff',
-                            },
-                        }}
+                        sx={dataGridStyles}
                     />
                 )}
             </Box>

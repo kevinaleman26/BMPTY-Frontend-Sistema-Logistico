@@ -142,8 +142,8 @@ export default function FacturaModal({ open, onClose, factura }) {
     const total = useMemo(() => subtotal - descuento + otros + impuestos, [subtotal, descuento, otros, impuestos])
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
-            <DialogTitle>{factura ? 'Editar Factura' : 'Crear Factura'}</DialogTitle>
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
+            <DialogTitle sx={{borderBottom:"1px solid",borderColor:"divider"}}>{factura ? 'Editar Factura' : 'Crear Factura'}</DialogTitle>
             <DialogContent>
                 <Box
                     component="form"

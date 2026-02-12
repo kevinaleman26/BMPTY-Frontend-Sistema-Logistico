@@ -1,5 +1,6 @@
 'use client'
 
+import SucursalDebtCard from '@/components/Card/SucursalDebtCard'
 import PaqueteTableSelection from '@/components/TableSelection/PaqueteTableSelection'
 import { useMetodoPago } from '@/hooks/useMetodoPago'
 import { useMutateTransferencia } from '@/hooks/useMutateTransferencia'
@@ -68,8 +69,8 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
     })
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-            <DialogTitle>
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
+            <DialogTitle sx={{borderBottom:"1px solid",borderColor:"divider"}}>
                 {transferencia ? 'Editar Transferencia' : 'Crear Transferencia'}
             </DialogTitle>
             <DialogContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -111,6 +112,14 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                             </MenuItem>
                         ))}
                     </TextField>
+
+                    {/* Show debt card when receptor sucursal is selected */}
+                    {formik.values.receptor_sucursal_id && (
+                        <SucursalDebtCard
+                            sucursalId={formik.values.receptor_sucursal_id}
+                            sucursalName={sucursales?.find(s => s.id === formik.values.receptor_sucursal_id)?.name}
+                        />
+                    )}
 
                     <TextField
                         select

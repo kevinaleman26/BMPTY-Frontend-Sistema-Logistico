@@ -1,11 +1,12 @@
 'use client'
 
 import { Box, MenuItem, TextField } from '@mui/material'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useDebouncedCallback } from 'use-debounce'
 
 export default function SucursalFilters() {
     const router = useRouter()
+    const pathname = usePathname()
     const searchParams = useSearchParams()
 
     const handleFilterChange = useDebouncedCallback((key, value) => {
@@ -17,19 +18,34 @@ export default function SucursalFilters() {
             params.delete(key)
         }
 
-        params.set('page', 1)
-        router.push(`?${params.toString()}`)
+        params.set('page', '1')
+        router.push(`${pathname}?${params.toString()}`)
     }, 300)
 
     return (
-        <Box display="flex" gap={2} mb={2}>
+        <Box
+            className="slide-up"
+            sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 2,
+                mb: 3,
+                p: 2.5,
+                backgroundColor: 'surface.elevated',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: '8px',
+                opacity: 0,
+                animationFillMode: 'forwards',
+                animationDelay: '0.1s',
+            }}
+        >
             <TextField
                 label="Nombre"
                 defaultValue={searchParams.get('name') || ''}
                 onChange={(e) => handleFilterChange('name', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                InputProps={{ style: { color: '#fff' } }}
+                sx={{ minWidth: 180 }}
             />
 
             <TextField
@@ -37,8 +53,7 @@ export default function SucursalFilters() {
                 defaultValue={searchParams.get('address') || ''}
                 onChange={(e) => handleFilterChange('address', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                InputProps={{ style: { color: '#fff' } }}
+                sx={{ minWidth: 180 }}
             />
 
             <TextField
@@ -47,9 +62,7 @@ export default function SucursalFilters() {
                 value={searchParams.get('status') ?? ''}
                 onChange={(e) => handleFilterChange('status', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                SelectProps={{ style: { color: '#fff' } }}
-                sx={{ minWidth: 160 }}
+                sx={{ minWidth: 180 }}
             >
                 <MenuItem value="">Todos</MenuItem>
                 <MenuItem value="true">Activo</MenuItem>

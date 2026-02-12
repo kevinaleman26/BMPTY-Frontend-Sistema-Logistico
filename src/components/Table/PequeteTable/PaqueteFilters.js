@@ -1,11 +1,12 @@
 'use client'
 
 import { Box, TextField } from '@mui/material'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useDebouncedCallback } from 'use-debounce'
 
 export default function PaqueteFilters() {
     const router = useRouter()
+    const pathname = usePathname()
     const searchParams = useSearchParams()
 
     const handleFilterChange = useDebouncedCallback((key, value) => {
@@ -17,19 +18,34 @@ export default function PaqueteFilters() {
             params.delete(key)
         }
 
-        params.set('page', 1)
-        router.push(`?${params.toString()}`)
+        params.set('page', '1')
+        router.push(`${pathname}?${params.toString()}`)
     }, 300)
 
     return (
-        <Box display="flex" gap={2} mb={2}>
+        <Box
+            className="slide-up"
+            sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 2,
+                mb: 3,
+                p: 2.5,
+                backgroundColor: 'surface.elevated',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: '8px',
+                opacity: 0,
+                animationFillMode: 'forwards',
+                animationDelay: '0.1s',
+            }}
+        >
             <TextField
                 label="Factura ID"
                 defaultValue={searchParams.get('factura_id') || ''}
                 onChange={(e) => handleFilterChange('factura_id', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                InputProps={{ style: { color: '#fff' } }}
+                sx={{ minWidth: 180 }}
             />
 
             <TextField
@@ -37,8 +53,7 @@ export default function PaqueteFilters() {
                 defaultValue={searchParams.get('tipo') || ''}
                 onChange={(e) => handleFilterChange('tipo', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                InputProps={{ style: { color: '#fff' } }}
+                sx={{ minWidth: 180 }}
             />
 
             <TextField
@@ -46,8 +61,7 @@ export default function PaqueteFilters() {
                 defaultValue={searchParams.get('codigo') || ''}
                 onChange={(e) => handleFilterChange('codigo', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                InputProps={{ style: { color: '#fff' } }}
+                sx={{ minWidth: 180 }}
             />
         </Box>
     )

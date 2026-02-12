@@ -1,5 +1,7 @@
 // src/components/Table/OperadoresTable/index.js
 'use client'
+import { dataGridStyles } from '@/styles/dataGridStyles'
+
 
 import { supabase } from '@/lib/supabase'
 import { Box, Chip, CircularProgress, Typography } from '@mui/material'

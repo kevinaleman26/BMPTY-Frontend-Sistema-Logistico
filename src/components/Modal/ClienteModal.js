@@ -70,8 +70,22 @@ export default function ClienteModal({ open, onClose, cliente }) {
     const tarifa = selectedSucursal?.tasa || ''
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>{cliente ? 'Editar Cliente' : 'Crear Cliente'}</DialogTitle>
+        <Dialog
+            open={open}
+            onClose={onClose}
+            fullWidth
+            maxWidth="sm"
+            PaperProps={{
+                sx: {
+                    backgroundColor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider'
+                }
+            }}
+        >
+            <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                {cliente ? 'Editar Cliente' : 'Crear Cliente'}
+            </DialogTitle>
             <DialogContent>
                 <Box
                     component="form"

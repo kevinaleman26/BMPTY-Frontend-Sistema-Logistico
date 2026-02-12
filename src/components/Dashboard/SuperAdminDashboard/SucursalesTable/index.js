@@ -1,5 +1,7 @@
 'use client'
 
+import { dataGridStyles } from '@/styles/dataGridStyles'
+
 import { supabase } from '@/lib/supabase'
 import { Box, CircularProgress, Typography } from '@mui/material'
 import { DataGrid } from '@mui/x-data-grid'

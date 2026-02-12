@@ -1,12 +1,85 @@
-import ClientRegisterForm from '@/components/Form/ClientRegisterForm'
-import { Typography } from '@mui/material'
+"use client"
+
+import ClientRegisterForm from "@/components/Form/ClientRegisterForm"
+import { Box, Typography, alpha } from "@mui/material"
+import { use } from "react"
 
 export default function RegistroPage({ searchParams }) {
-    const sucursalIdParam = searchParams?.sucursal ?? ''
-    return (
-        <>
-            <Typography variant="h4" sx={{ marginY: 2, marginX: 'auto' }}>Registro de Usuario</Typography>
-            <ClientRegisterForm sucursalIdParam={sucursalIdParam} />
-        </>
-    )
+  const params = use(searchParams)
+  const sucursalIdParam = params?.sucursal ?? ""
+
+  return (
+    <Box
+      className="slide-up"
+      sx={{
+        opacity: 0,
+        animationFillMode: 'forwards',
+        animationDelay: '0.1s'
+      }}
+    >
+      {/* Document Header */}
+      <Box
+        sx={{
+          mb: 4,
+          pb: 3,
+          borderBottom: '1px solid',
+          borderColor: '#3a3730',
+          position: 'relative'
+        }}
+      >
+        {/* Gradient accent line */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            width: '120px',
+            height: '2px',
+            background: 'linear-gradient(90deg, #f4b223 0%, transparent 100%)'
+          }}
+        />
+
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            mb: 1.5
+          }}
+        >
+          <Box
+            sx={{
+              width: '4px',
+              height: '32px',
+              backgroundColor: '#f4b223',
+              borderRadius: '2px'
+            }}
+          />
+          <Typography
+            variant="h4"
+            sx={{
+              color: '#ffffff',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              fontFamily: 'IBM Plex Sans, sans-serif'
+            }}
+          >
+            Registro de Usuario
+          </Typography>
+        </Box>
+        <Typography
+          sx={{
+            color: '#a8a399',
+            fontSize: '0.9375rem',
+            pl: 3.5,
+            fontFamily: 'IBM Plex Sans, sans-serif'
+          }}
+        >
+          Completa el formulario para crear tu cuenta
+        </Typography>
+      </Box>
+
+      <ClientRegisterForm sucursalIdParam={sucursalIdParam} />
+    </Box>
+  )
 }

@@ -9,7 +9,6 @@ export function useMutateTransferencia() {
 
     const createTransferencia = useMutation({
         mutationFn: async (data) => {
-
             console.log(data)
 
             const transferensia = data;
@@ -17,10 +16,23 @@ export function useMutateTransferencia() {
 
             delete transferensia.paqueteList
 
+            // Step 1: Calculate total using RPC function
+            const { data: totalCalculado, error: totalError } = await supabase
+                .rpc('calcular_total_transferencia', {
+                    p_paquete_codigos: listaPaquetes
+                })
+
+            if (totalError) {
+                console.error('Error calculating total:', totalError)
+                throw new Error('Failed to calculate transfer total')
+            }
+
+            // Step 2: Insert transferencia with calculated total
             const { data: transferencia, error } = await supabase
                 .from('transferencia_sucursal')
                 .insert({
                     ...transferensia,
+                    total: totalCalculado || 0,
                     created_at: new Date()
                 })
                 .select()
@@ -28,25 +40,42 @@ export function useMutateTransferencia() {
 
             if (error) throw error
 
+            // Step 3: Update solicitud_paquete with transferencia_id
             const { data: dt, error: solicitudError } = await supabase
                 .from('solicitud_paquete')
                 .update({ transferencia_id: transferencia.id })
                 .in('paquete_id', listaPaquetes)
                 .select('*');
 
-            if (solicitudError) throw solicitudError
+            if (solicitudError) {
+                // Rollback: delete the created transfer if package assignment fails
+                await supabase
+                    .from('transferencia_sucursal')
+                    .delete()
+                    .eq('id', transferencia.id)
+
+                throw new Error('Failed to assign packages to transfer')
+            }
+
+            return transferencia
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['transferencias'])
+            queryClient.invalidateQueries(['deuda-sucursales'])
         },
         onError: (err) => {
-            console.log(err)
+            console.error('Error creating transferencia:', err)
         }
     })
 
     const updateTransferencia = useMutation({
         mutationFn: async ({ id, ...rest }) => {
             delete rest.paqueteList
+
+            // Note: We don't allow updating the total field
+            // Total is preserved from creation time for historical accuracy
+            delete rest.total
+
             const { error } = await supabase
                 .from('transferencia_sucursal')
                 .update(rest)
@@ -56,6 +85,7 @@ export function useMutateTransferencia() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['transferencias'])
+            queryClient.invalidateQueries(['deuda-sucursales'])
         }
     })
 

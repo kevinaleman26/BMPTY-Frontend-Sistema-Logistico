@@ -12,17 +12,25 @@ export const useTransferencias = () => {
 
     const page = Number(searchParams.get('page')) || 1
     const limit = Number(searchParams.get('limit')) || 10
-    const metodo_pago = Number(searchParams.get('metodo_pago')) || ''
-    const emisor_sucursal = Number(searchParams.get('emisor_sucursal')) || ''
-    const receptor_sucursal = Number(searchParams.get('receptor_sucursal')) || ''
+    const factura_id = searchParams.get('factura_id') || ''
+    const metodo_pago = searchParams.get('metodo_pago') || ''
+    const emisor_sucursal = searchParams.get('emisor_sucursal') || ''
+    const receptor_sucursal = searchParams.get('receptor_sucursal') || ''
     const delivery_status = searchParams.get('delivery_status') || ''
     const payment_status = searchParams.get('payment_status') || ''
 
     const offset = (page - 1) * limit
 
-    const queryKey = ['transferencias', { page, limit, metodo_pago, emisor_sucursal, receptor_sucursal, delivery_status, payment_status }]
+    const queryKey = ['transferencias', { page, limit, factura_id, metodo_pago, emisor_sucursal, receptor_sucursal, delivery_status, payment_status }]
 
     const queryFn = async () => {
+        // Obtener ID de la sucursal "ROBOT" para excluirla
+        const { data: robotSucursal } = await supabase
+            .from('sucursal')
+            .select('id')
+            .eq('name', 'ROBOT')
+            .maybeSingle()
+
         let query;
         if (session.role.id !== 1) {
             query = supabase
@@ -81,10 +89,16 @@ export const useTransferencias = () => {
                 .range(offset, offset + limit - 1)
         }
 
-        // Filtros dinámicos correctos
-        if (metodo_pago) query = query.eq('metodo_pago_id', metodo_pago)
-        if (emisor_sucursal) query = query.eq('emisor_sucursal_id', emisor_sucursal)
-        if (receptor_sucursal) query = query.eq('receptor_sucursal_id', receptor_sucursal)
+        // Excluir transferencias de sucursal emisora "ROBOT"
+        if (robotSucursal?.id) {
+            query = query.neq('emisor_sucursal_id', robotSucursal.id)
+        }
+
+        // Filtros dinámicos
+        if (factura_id) query = query.eq('id', Number(factura_id))
+        if (metodo_pago) query = query.eq('metodo_pago_id', Number(metodo_pago))
+        if (emisor_sucursal) query = query.eq('emisor_sucursal_id', Number(emisor_sucursal))
+        if (receptor_sucursal) query = query.eq('receptor_sucursal_id', Number(receptor_sucursal))
         if (delivery_status) query = query.eq('delivery_status', delivery_status === 'true')
         if (payment_status) query = query.eq('payment_status', payment_status === 'true')
 
@@ -104,6 +118,7 @@ export const useTransferencias = () => {
         error,
         page,
         limit,
+        factura_id,
         metodo_pago,
         emisor_sucursal,
         receptor_sucursal,

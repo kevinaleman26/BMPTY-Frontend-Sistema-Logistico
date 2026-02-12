@@ -2,16 +2,17 @@
 
 import { useMetodoPago } from '@/hooks/useMetodoPago'
 import { useSucursal } from '@/hooks/useSucursal'
-import { Box, MenuItem, TextField } from '@mui/material'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Box, CircularProgress, MenuItem, TextField } from '@mui/material'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useDebouncedCallback } from 'use-debounce'
 
 export default function TransferenciaFilters() {
     const router = useRouter()
+    const pathname = usePathname()
     const searchParams = useSearchParams()
 
-    const { data: metodos } = useMetodoPago()
-    const { data: sucursales } = useSucursal()
+    const { data: metodos, isLoading: isLoadingMetodos } = useMetodoPago()
+    const { data: sucursales, isLoading: isLoadingSucursales } = useSucursal()
 
     const handleFilterChange = useDebouncedCallback((key, value) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -22,19 +23,35 @@ export default function TransferenciaFilters() {
             params.delete(key)
         }
 
-        params.set('page', 1)
-        router.push(`?${params.toString()}`)
+        params.set('page', '1')
+        router.push(`${pathname}?${params.toString()}`)
     }, 300)
 
     return (
-        <Box display="flex" flexWrap="wrap" gap={2} mb={2}>
+        <Box
+            className="slide-up"
+            sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 2,
+                mb: 3,
+                p: 2.5,
+                backgroundColor: 'surface.elevated',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: '8px',
+                opacity: 0,
+                animationFillMode: 'forwards',
+                animationDelay: '0.1s',
+            }}
+        >
             <TextField
-                label="ID Factura"
+                label="ID Transferencia"
                 defaultValue={searchParams.get('factura_id') || ''}
                 onChange={(e) => handleFilterChange('factura_id', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                InputProps={{ style: { color: '#fff' } }}
+                type="number"
+                sx={{ minWidth: 180 }}
             />
 
             <TextField
@@ -43,8 +60,6 @@ export default function TransferenciaFilters() {
                 value={searchParams.get('delivery_status') ?? ''}
                 onChange={(e) => handleFilterChange('delivery_status', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                SelectProps={{ style: { color: '#fff' } }}
                 sx={{ minWidth: 180 }}
             >
                 <MenuItem value="">Todos</MenuItem>
@@ -58,8 +73,6 @@ export default function TransferenciaFilters() {
                 value={searchParams.get('payment_status') ?? ''}
                 onChange={(e) => handleFilterChange('payment_status', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                SelectProps={{ style: { color: '#fff' } }}
                 sx={{ minWidth: 180 }}
             >
                 <MenuItem value="">Todos</MenuItem>
@@ -73,16 +86,22 @@ export default function TransferenciaFilters() {
                 value={searchParams.get('metodo_pago') ?? ''}
                 onChange={(e) => handleFilterChange('metodo_pago', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                SelectProps={{ style: { color: '#fff' } }}
+                disabled={isLoadingMetodos}
                 sx={{ minWidth: 180 }}
             >
                 <MenuItem value="">Todos</MenuItem>
-                {metodos?.map((m) => (
-                    <MenuItem key={m.id} value={m.id}>
-                        {m.name}
+                {isLoadingMetodos ? (
+                    <MenuItem disabled>
+                        <CircularProgress size={20} sx={{ mr: 1 }} />
+                        Cargando...
                     </MenuItem>
-                ))}
+                ) : (
+                    metodos?.map((m) => (
+                        <MenuItem key={m.id} value={m.id}>
+                            {m.name}
+                        </MenuItem>
+                    ))
+                )}
             </TextField>
 
             <TextField
@@ -91,16 +110,22 @@ export default function TransferenciaFilters() {
                 value={searchParams.get('emisor_sucursal') ?? ''}
                 onChange={(e) => handleFilterChange('emisor_sucursal', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                SelectProps={{ style: { color: '#fff' } }}
+                disabled={isLoadingSucursales}
                 sx={{ minWidth: 180 }}
             >
                 <MenuItem value="">Todas</MenuItem>
-                {sucursales?.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>
-                        {s.name}
+                {isLoadingSucursales ? (
+                    <MenuItem disabled>
+                        <CircularProgress size={20} sx={{ mr: 1 }} />
+                        Cargando...
                     </MenuItem>
-                ))}
+                ) : (
+                    sucursales?.map((s) => (
+                        <MenuItem key={s.id} value={s.id}>
+                            {s.name}
+                        </MenuItem>
+                    ))
+                )}
             </TextField>
 
             <TextField
@@ -109,16 +134,22 @@ export default function TransferenciaFilters() {
                 value={searchParams.get('receptor_sucursal') ?? ''}
                 onChange={(e) => handleFilterChange('receptor_sucursal', e.target.value)}
                 size="small"
-                InputLabelProps={{ style: { color: '#ccc' } }}
-                SelectProps={{ style: { color: '#fff' } }}
+                disabled={isLoadingSucursales}
                 sx={{ minWidth: 180 }}
             >
                 <MenuItem value="">Todas</MenuItem>
-                {sucursales?.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>
-                        {s.name}
+                {isLoadingSucursales ? (
+                    <MenuItem disabled>
+                        <CircularProgress size={20} sx={{ mr: 1 }} />
+                        Cargando...
                     </MenuItem>
-                ))}
+                ) : (
+                    sucursales?.map((s) => (
+                        <MenuItem key={s.id} value={s.id}>
+                            {s.name}
+                        </MenuItem>
+                    ))
+                )}
             </TextField>
         </Box>
     )
