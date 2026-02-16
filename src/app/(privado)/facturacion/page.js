@@ -1,13 +1,14 @@
 // app/(privado)/facturacion/page.js
 'use client'
 
-
 import FacturaModal from '@/components/Modal/FacturaModal'
 import FacturaTable from '@/components/Table/FacturaTable'
 import AddIcon from '@mui/icons-material/Add'
-import { Box, Button, Typography } from '@mui/material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Typography from '@mui/material/Typography'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 export default function FacturacionPage() {
     const [open, setOpen] = useState(false)
@@ -24,16 +25,27 @@ export default function FacturacionPage() {
         if (changed) router.replace(`?${params.toString()}`)
     }, [searchParams, router])
 
-    const handleOpenCreate = () => { setFacturaEdit(null); setOpen(true) }
-    const handleEdit = (row) => { setFacturaEdit(row); setOpen(true) }
-    const handleClose = () => { setOpen(false); setFacturaEdit(null) }
+    const handleOpenCreate = useCallback(() => {
+        setFacturaEdit(null)
+        setOpen(true)
+    }, [])
+
+    const handleEdit = useCallback((row) => {
+        setFacturaEdit(row)
+        setOpen(true)
+    }, [])
+
+    const handleClose = useCallback(() => {
+        setOpen(false)
+        setFacturaEdit(null)
+    }, [])
 
     // Más adelante conectamos onSubmit con tu hook useMutateFactura
-    const handleSubmit = async (values) => {
+    const handleSubmit = useCallback(async (values) => {
         console.log('Enviar al backend:', values, facturaEdit ? '(editar)' : '(crear)')
         // if (facturaEdit) await updateFactura.mutateAsync({ id: facturaEdit.id, ...values })
         // else await createFactura.mutateAsync(values)
-    }
+    }, [facturaEdit])
 
     return (
         <Box p={3}>

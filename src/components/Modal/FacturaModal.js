@@ -5,22 +5,22 @@ import PaqueteTableSelection from '@/components/TableSelection/PaqueteTableSelec
 import { useClientesBasic } from '@/hooks/useClientesBasic'
 import { useMetodoPago } from '@/hooks/useMetodoPago'
 import { useMutateFactura } from '@/hooks/useMutateFactura'
+import { useSession } from '@/hooks/useSession'
 import { useSucursal } from '@/hooks/useSucursal'
 import { supabase } from '@/lib/supabase'
-import {
-    Box, Button,
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    FormControlLabel,
-    MenuItem,
-    Switch,
-    TextField,
-    Typography
-} from '@mui/material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Divider from '@mui/material/Divider'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import MenuItem from '@mui/material/MenuItem'
+import Switch from '@mui/material/Switch'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
 import { useFormik } from 'formik'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import * as Yup from 'yup'
 
 function flattenProveedorPaquetes(detalle) {
@@ -41,6 +41,7 @@ function flattenProveedorPaquetes(detalle) {
 
 export default function FacturaModal({ open, onClose, factura }) {
     const [sucursalSelected, setSucursalSelected] = useState(0)
+    const { session } = useSession()
     const { data: sucursales } = useSucursal()
     const { data: metodosPago } = useMetodoPago()
     const { data: clientes } = useClientesBasic(sucursalSelected)
@@ -84,14 +85,21 @@ export default function FacturaModal({ open, onClose, factura }) {
                 const totalCalc = subtotalCalc - descuento + otros + impuestos
 
                 if (factura) {
-                    await updateFactura.mutateAsync({
+                    const updatePayload = {
                         id: factura.id,
                         sucursal_id: values.sucursal_id,
                         cliente_id: values.cliente_id,
                         metodo_pago_id: values.metodo_pago_id,
                         delivery_status: values.delivery_status,
                         payment_status: values.payment_status
-                    })
+                    }
+
+                    // If marking as delivered, add operator
+                    if (values.delivery_status === true && factura.delivery_status === false) {
+                        updatePayload.operador_entrega_id = session?.id
+                    }
+
+                    await updateFactura.mutateAsync(updatePayload)
                 } else {
                     await createFactura.mutateAsync({
                         sucursal_id: values.sucursal_id,
@@ -102,7 +110,8 @@ export default function FacturaModal({ open, onClose, factura }) {
                         otros,
                         impuestos,
                         total: totalCalc,
-                        trackingCodes
+                        trackingCodes,
+                        operador_factura_id: session?.id
                     })
                 }
 

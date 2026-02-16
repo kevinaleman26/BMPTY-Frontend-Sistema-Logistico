@@ -4,22 +4,23 @@ import SucursalDebtCard from '@/components/Card/SucursalDebtCard'
 import PaqueteTableSelection from '@/components/TableSelection/PaqueteTableSelection'
 import { useMetodoPago } from '@/hooks/useMetodoPago'
 import { useMutateTransferencia } from '@/hooks/useMutateTransferencia'
+import { useSession } from '@/hooks/useSession'
 import { useSucursal } from '@/hooks/useSucursal'
-import {
-    Box,
-    Button,
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    MenuItem,
-    TextField
-} from '@mui/material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Divider from '@mui/material/Divider'
+import MenuItem from '@mui/material/MenuItem'
+import TextField from '@mui/material/TextField'
 import { useFormik } from 'formik'
+import { useMemo } from 'react'
 import * as Yup from 'yup'
 
 export default function TransferenciaModal({ open, onClose, transferencia }) {
     const { createTransferencia, updateTransferencia } = useMutateTransferencia()
+    const { session } = useSession()
     const { data: sucursales } = useSucursal()
     const { data: metodosPago } = useMetodoPago()
 
@@ -52,11 +53,18 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                 }
 
                 if (transferencia) {
+                    // When updating, if marking as delivered, add receptor operator
+                    if (payload.delivery_status === true && transferencia.delivery_status === false) {
+                        payload.operador_receptor_id = session?.id
+                    }
+
                     await updateTransferencia.mutateAsync({
                         id: transferencia.id,
                         ...payload
                     })
                 } else {
+                    // When creating, add emisor operator
+                    payload.operador_emisor_id = session?.id
                     await createTransferencia.mutateAsync(payload)
                 }
 

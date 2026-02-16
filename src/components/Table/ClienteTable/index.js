@@ -3,31 +3,50 @@
 import { useClientes } from '@/hooks/useClientes'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import EditIcon from '@mui/icons-material/Edit'
-import { Box, Chip, CircularProgress, IconButton } from '@mui/material'
+import VisibilityIcon from '@mui/icons-material/Visibility'
+import Box from '@mui/material/Box'
+import Chip from '@mui/material/Chip'
+import CircularProgress from '@mui/material/CircularProgress'
+import IconButton from '@mui/material/IconButton'
+import Tooltip from '@mui/material/Tooltip'
 import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useMemo, useCallback, useState } from 'react'
 import ClienteFilters from './ClienteFilters'
+import ClienteDetailModal from '@/components/Modal/ClienteDetailModal'
 
 export default function ClienteTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const [detailModalOpen, setDetailModalOpen] = useState(false)
+    const [selectedCliente, setSelectedCliente] = useState(null)
 
     const { data, count, isLoading, page, limit } = useClientes()
 
-    const handlePageChange = (newPage) => {
+    const handlePageChange = useCallback((newPage) => {
         const params = new URLSearchParams(searchParams.toString())
         params.set('page', newPage + 1)
         router.push(`?${params.toString()}`)
-    }
+    }, [searchParams, router])
 
-    const handlePageSizeChange = (newLimit) => {
+    const handlePageSizeChange = useCallback((newLimit) => {
         const params = new URLSearchParams(searchParams.toString())
         params.set('limit', newLimit)
         params.set('page', 1)
         router.push(`?${params.toString()}`)
-    }
+    }, [searchParams, router])
 
-    const columns = [
+    const handleViewDetail = useCallback((cliente) => {
+        setSelectedCliente(cliente)
+        setDetailModalOpen(true)
+    }, [])
+
+    const handleCloseDetail = useCallback(() => {
+        setDetailModalOpen(false)
+        setSelectedCliente(null)
+    }, [])
+
+    const columns = useMemo(() => [
         {
             field: 'sucursal',
             headerName: 'Sucursal',
@@ -52,14 +71,23 @@ export default function ClienteTable({ onEdit }) {
         {
             field: 'accion',
             headerName: 'Acción',
-            width: 100,
+            width: 120,
             renderCell: (params) => (
-                <IconButton onClick={() => onEdit(params.row)}>
-                    <EditIcon sx={{ color: '#fff' }} />
-                </IconButton>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Tooltip title="Ver detalle">
+                        <IconButton onClick={() => handleViewDetail(params.row)} size="small">
+                            <VisibilityIcon sx={{ color: '#f4b223' }} />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Editar">
+                        <IconButton onClick={() => onEdit(params.row)} size="small">
+                            <EditIcon sx={{ color: '#fff' }} />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
             )
         }
-    ]
+    ], [onEdit, handleViewDetail])
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -69,10 +97,12 @@ export default function ClienteTable({ onEdit }) {
             {/* Tabla */}
             <Box sx={{ height: 500, width: '100%' }}>
                 {isLoading ? (
-                    <CircularProgress />
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        <CircularProgress />
+                    </Box>
                 ) : (
                     <DataGrid
-                        rows={data.data || []}
+                        rows={data?.data || []}
                         columns={columns}
                         rowCount={count || 0}
                         paginationMode="server"
@@ -90,6 +120,13 @@ export default function ClienteTable({ onEdit }) {
                     />
                 )}
             </Box>
+
+            {/* Modal de Detalle */}
+            <ClienteDetailModal
+                open={detailModalOpen}
+                onClose={handleCloseDetail}
+                cliente={selectedCliente}
+            />
         </Box>
     )
 }

@@ -65,12 +65,13 @@ export function useClientes() {
 
     return {
         data,
-        isLoading: isLoading || loading, // 👈 cubre también el loading de la sesión
+        isLoading: isLoading || loading,
         isError,
         error,
         count: data?.count || 0,
         page,
         limit,
-        session, // 👈 lo devuelvo por si quieres usar datos de sesión en el componente
+        // Optimización: No devolver toda la sesión (over-serialization)
+        // Solo devolver los datos específicos si son necesarios
     }
 }

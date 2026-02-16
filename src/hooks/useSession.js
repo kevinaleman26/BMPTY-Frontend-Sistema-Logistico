@@ -41,34 +41,38 @@ export function useSession() {
         const actionSession = async (session) => {
 
             if (!session) {
+                setLoading(false)
                 return
             }
 
-            const getSesionInfo = session
-            const { user } = getSesionInfo
+            const { user } = session
             const id = user.id
 
-            const cliente = await getClientInfo(id)
+            // Optimización: Hacer ambas consultas en paralelo en lugar de waterfall
+            const [clienteResult, operadorResult] = await Promise.allSettled([
+                getClientInfo(id),
+                getOperadorInfo(id)
+            ])
 
-            if (cliente) {
-                setSession(cliente)
-            } else {
-                const operador = await getOperadorInfo(id);
-                setSession(operador)
+            // Usar el resultado que sea exitoso
+            if (clienteResult.status === 'fulfilled' && clienteResult.value) {
+                setSession(clienteResult.value)
+            } else if (operadorResult.status === 'fulfilled' && operadorResult.value) {
+                setSession(operadorResult.value)
             }
 
             setLoading(false)
         }
 
         const getSession = async () => {
-            const { data, error } = await supabase.auth.getSession()
-            return actionSession(data?.session)
+            const { data } = await supabase.auth.getSession()
+            await actionSession(data?.session)
         }
 
         getSession()
 
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(actionSession(session))
+        const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            await actionSession(session)
         })
 
         return () => listener.subscription.unsubscribe()

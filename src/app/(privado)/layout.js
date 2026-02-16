@@ -8,21 +8,19 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import { useSession } from '@/hooks/useSession'
 import { supabase } from '@/lib/supabase'
 import AccountCircle from '@mui/icons-material/AccountCircle'
-import {
-    AppBar,
-    Box,
-    CssBaseline,
-    Drawer,
-    IconButton,
-    Menu,
-    MenuItem,
-    Toolbar,
-    Typography
-} from '@mui/material'
+import AppBar from '@mui/material/AppBar'
+import Box from '@mui/material/Box'
+import CssBaseline from '@mui/material/CssBaseline'
+import Drawer from '@mui/material/Drawer'
+import IconButton from '@mui/material/IconButton'
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
+import Toolbar from '@mui/material/Toolbar'
+import Typography from '@mui/material/Typography'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 
 const drawerWidth = 260
 
@@ -31,25 +29,26 @@ export default function PrivadoLayout({ children }) {
     const router = useRouter()
     const [anchorEl, setAnchorEl] = useState(null)
 
-    const handleLogout = async () => {
+    const handleLogout = useCallback(async () => {
         await supabase.auth.signOut()
         router.push('/login')
-    }
+    }, [router])
 
-    const handleMenuOpen = (event) => {
+    const handleMenuOpen = useCallback((event) => {
         setAnchorEl(event.currentTarget)
-    }
+    }, [])
 
-    const handleMenuClose = () => {
+    const handleMenuClose = useCallback(() => {
         setAnchorEl(null)
-    }
+    }, [])
 
-    const menudRoleHandler = () => {
+    const roleMenu = useMemo(() => {
         if (session?.role?.id === 1) return <SuperAdminMenu />
         if (session?.role?.id === 2) return <AdminMenu />
         if (session?.role?.id === 3) return <OperadorMenu />
         if (session?.role?.id === 4) return <ClienteMenu />
-    }
+        return null
+    }, [session?.role?.id])
 
     return (
         <ProtectedRoute>
@@ -215,7 +214,7 @@ export default function PrivadoLayout({ children }) {
                         />
                     </Box>
                     <Box sx={{ animationDelay: '0.2s' }}>
-                        {menudRoleHandler()}
+                        {roleMenu}
                     </Box>
                 </Box>
 

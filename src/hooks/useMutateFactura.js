@@ -17,11 +17,22 @@ export function useMutateFactura() {
             otros,
             impuestos,
             total,
-            trackingCodes = []
+            trackingCodes = [],
+            operador_factura_id = null
         }) => {
             const { data: cab, error: cabErr } = await supabase
                 .from('factura')
-                .insert([{ sucursal_id, cliente_id, metodo_pago_id, subtotal, descuento, otros, impuestos, total }])
+                .insert([{
+                    sucursal_id,
+                    cliente_id,
+                    metodo_pago_id,
+                    subtotal,
+                    descuento,
+                    otros,
+                    impuestos,
+                    total,
+                    operador_factura_id
+                }])
                 .select('id')
                 .single()
             if (cabErr) throw cabErr
@@ -54,9 +65,10 @@ export function useMutateFactura() {
             const payload = { ...changes }
             const nowIso = new Date().toISOString()
 
-            // 2) Si viene delivery_status y cambió, setear delivery_date
+            // 2) Si viene delivery_status y cambió, setear delivery_date y operador_entrega_id
             if (typeof changes.delivery_status === 'boolean' && changes.delivery_status !== current.delivery_status) {
                 payload.delivery_date = changes.delivery_status ? nowIso : null
+                // operador_entrega_id should be passed from the modal when delivery_status = true
             }
 
             // 3) Si viene payment_status y cambió, setear payment_date

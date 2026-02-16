@@ -2,9 +2,11 @@
 
 import { usePaquetes } from '@/hooks/usePaquetes'
 import { dataGridStyles } from '@/styles/dataGridStyles'
-import { Box, CircularProgress } from '@mui/material'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
 import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useMemo, useCallback } from 'react'
 import PaqueteFilters from './PaqueteFilters'
 
 export default function PaqueteTable({ onEdit }) {
@@ -12,7 +14,7 @@ export default function PaqueteTable({ onEdit }) {
     const searchParams = useSearchParams()
     const { data, count, isLoading, page, limit } = usePaquetes()
 
-    const columns = [
+    const columns = useMemo(() => [
         { field: 'factura_id', headerName: 'Factura ID', width: 100 },
         { field: 'tipo', headerName: 'Tipo', width: 100 },
         { field: 'codigo', headerName: 'Código', flex: 1 },
@@ -34,14 +36,23 @@ export default function PaqueteTable({ onEdit }) {
             )
         }
         */
-    ]
+    ], [])
+
+    const handlePaginationChange = useCallback(({ page: newPage, pageSize: newPageSize }) => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('page', newPage + 1)
+        params.set('limit', newPageSize)
+        router.push(`?${params.toString()}`)
+    }, [searchParams, router])
 
     return (
         <Box width="100%">
             <PaqueteFilters />
             <Box height={500}>
                 {isLoading ? (
-                    <CircularProgress />
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        <CircularProgress />
+                    </Box>
                 ) : (
                     <DataGrid
                         rows={data?.data || []}
@@ -53,14 +64,7 @@ export default function PaqueteTable({ onEdit }) {
                             page: Math.max(page - 1, 0),
                             pageSize: limit
                         }}
-                        onPaginationModelChange={({ page: newPage, pageSize: newPageSize }) => {
-                            const params = new URLSearchParams(searchParams.toString())
-
-                            params.set('page', newPage + 1) // el DataGrid usa 0-indexed
-                            params.set('limit', newPageSize)
-
-                            router.push(`?${params.toString()}`)
-                        }}
+                        onPaginationModelChange={handlePaginationChange}
                         disableRowSelectionOnClick
                         sx={dataGridStyles}
                     />

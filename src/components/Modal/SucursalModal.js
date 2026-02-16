@@ -1,23 +1,25 @@
 import { useMutateSucursal } from '@/hooks/useMutateSucursal'
-import {
-    Alert,
-    Box,
-    Button,
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    FormControlLabel,
-    Snackbar,
-    Switch,
-    TextField
-} from '@mui/material'
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Snackbar from '@mui/material/Snackbar'
+import Switch from '@mui/material/Switch'
+import TextField from '@mui/material/TextField'
 import { useFormik } from 'formik'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 export default function SucursalModal({ open, onClose, sucursal }) {
 
     const { createSucursal, updateSucursal } = useMutateSucursal()
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+
+    const handleSnackbarClose = useCallback(() => {
+        setSnackbar(prev => ({ ...prev, open: false }))
+    }, [])
 
     const formik = useFormik({
         initialValues: {
@@ -109,14 +111,14 @@ export default function SucursalModal({ open, onClose, sucursal }) {
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={3000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                onClose={handleSnackbarClose}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
                 <Alert
                     elevation={6}
                     variant="filled"
                     severity={snackbar.severity}
-                    onClose={() => setSnackbar({ ...snackbar, open: false })}
+                    onClose={handleSnackbarClose}
                 >
                     {snackbar.message}
                 </Alert>

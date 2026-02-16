@@ -1,194 +1,165 @@
 'use client'
 
-import { Box, Breadcrumbs, Link, Typography } from '@mui/material'
-import NextLink from 'next/link'
+import Box from '@mui/material/Box'
+import Breadcrumbs from '@mui/material/Breadcrumbs'
+import Typography from '@mui/material/Typography'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext'
+import Link from 'next/link'
+import { memo } from 'react'
 
 /**
- * PageHeader component - Consistent page title and breadcrumb navigation
+ * PageHeader Component per Design System
+ * Spec: .interface-design/system.md lines 200-209
  *
- * @param {string} title - Main page title
- * @param {string} subtitle - Optional subtitle/description
- * @param {Array} breadcrumbs - Array of { label, href } objects
- * @param {ReactNode} actions - Optional action buttons (right-aligned)
- * @param {ReactNode} icon - Optional icon component
+ * Features:
+ * - Breadcrumbs with animated arrows
+ * - Icon badge (48x48px) with rotation hover effect
+ * - Title (h4) with responsive typography
+ * - Optional subtitle (body1, max-width 600px)
+ * - Bottom border with 120px gradient accent (yellow fade)
+ * - Actions slot (right-aligned buttons)
+ * - Slide-down entrance animation
  */
-export default function PageHeader({
-    title,
-    subtitle,
-    breadcrumbs = [],
-    actions,
-    icon: Icon,
+const PageHeader = memo(function PageHeader({
+  title,
+  subtitle,
+  icon: Icon,
+  iconColor = '#f4b223',
+  breadcrumbs = [],
+  actions,
 }) {
-    return (
-        <Box
-            className="slide-down"
-            sx={{
-                mb: 4,
-                pb: 3,
-                borderBottom: '2px solid',
-                borderColor: 'divider',
-                position: 'relative',
-                animationDelay: '0.1s',
-                opacity: 0,
-                animationFillMode: 'forwards',
-
-                // Bottom accent gradient
-                '&::after': {
-                    content: '""',
-                    position: 'absolute',
-                    bottom: -2,
-                    left: 0,
-                    width: '120px',
-                    height: '2px',
-                    background: 'linear-gradient(90deg, #f4b223 0%, transparent 100%)',
-                }
-            }}
+  return (
+    <Box
+      className="slide-down"
+      sx={{
+        mb: 4,
+        pb: 3,
+        borderBottom: '1px solid #3a3730',
+        position: 'relative',
+        opacity: 0,
+        animationFillMode: 'forwards',
+        animationDelay: '0.1s',
+        // Bottom gradient accent (120px yellow fade)
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: -1,
+          left: 0,
+          width: '120px',
+          height: '2px',
+          background: 'linear-gradient(90deg, #f4b223 0%, transparent 100%)',
+        },
+      }}
+    >
+      {/* Breadcrumbs */}
+      {breadcrumbs.length > 0 && (
+        <Breadcrumbs
+          separator={<NavigateNextIcon sx={{ fontSize: 16, color: '#6d685f' }} />}
+          sx={{ mb: 2 }}
         >
-            {/* Breadcrumbs */}
-            {breadcrumbs.length > 0 && (
-                <Breadcrumbs
-                    separator={<NavigateNextIcon fontSize="small" />}
-                    sx={{
-                        mb: 2,
-                        '& .MuiBreadcrumbs-separator': {
-                            color: 'text.secondary',
-                            mx: 0.5,
-                        }
-                    }}
-                >
-                    {breadcrumbs.map((crumb, index) => {
-                        const isLast = index === breadcrumbs.length - 1
-
-                        if (isLast) {
-                            return (
-                                <Typography
-                                    key={crumb.label}
-                                    variant="body2"
-                                    sx={{
-                                        color: 'primary.main',
-                                        fontWeight: 600,
-                                        fontSize: '0.8rem',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.05em',
-                                    }}
-                                >
-                                    {crumb.label}
-                                </Typography>
-                            )
-                        }
-
-                        return (
-                            <Link
-                                key={crumb.label}
-                                component={NextLink}
-                                href={crumb.href}
-                                underline="hover"
-                                sx={{
-                                    color: 'text.secondary',
-                                    fontSize: '0.8rem',
-                                    fontWeight: 500,
-                                    transition: 'color 150ms ease',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.05em',
-                                    '&:hover': {
-                                        color: 'primary.main',
-                                    }
-                                }}
-                            >
-                                {crumb.label}
-                            </Link>
-                        )
-                    })}
-                </Breadcrumbs>
-            )}
-
-            {/* Title Row */}
-            <Box
+          {breadcrumbs.map((crumb, index) => {
+            const isLast = index === breadcrumbs.length - 1
+            return isLast ? (
+              <Typography
+                key={crumb.label}
                 sx={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 2,
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#f4b223',
+                  fontWeight: 600,
                 }}
+              >
+                {crumb.label}
+              </Typography>
+            ) : (
+              <Link
+                key={crumb.label}
+                href={crumb.href}
+                style={{
+                  textDecoration: 'none',
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#a8a399',
+                  fontWeight: 600,
+                  transition: 'color 150ms ease',
+                }}
+                onMouseEnter={(e) => (e.target.style.color = '#f4b223')}
+                onMouseLeave={(e) => (e.target.style.color = '#a8a399')}
+              >
+                {crumb.label}
+              </Link>
+            )
+          })}
+        </Breadcrumbs>
+      )}
+
+      {/* Header Content */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flex: 1 }}>
+          {/* Icon Badge */}
+          {Icon && (
+            <Box
+              sx={{
+                width: 48,
+                height: 48,
+                borderRadius: '10px',
+                backgroundColor: `${iconColor}15`,
+                border: `1px solid ${iconColor}30`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 300ms ease',
+                flexShrink: 0,
+                '&:hover': {
+                  transform: 'rotate(5deg) scale(1.1)',
+                  backgroundColor: `${iconColor}25`,
+                },
+              }}
             >
-                {/* Title Section */}
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: subtitle ? 1 : 0 }}>
-                        {/* Icon Badge */}
-                        {Icon && (
-                            <Box
-                                sx={{
-                                    width: 48,
-                                    height: 48,
-                                    borderRadius: '10px',
-                                    backgroundColor: 'rgba(244, 178, 35, 0.15)',
-                                    border: '2px solid rgba(244, 178, 35, 0.3)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0,
-                                    transition: 'all 200ms ease',
-                                    boxShadow: '0 4px 12px rgba(244, 178, 35, 0.2)',
-
-                                    '&:hover': {
-                                        transform: 'rotate(5deg) scale(1.05)',
-                                        boxShadow: '0 6px 16px rgba(244, 178, 35, 0.3)',
-                                    }
-                                }}
-                            >
-                                <Icon sx={{ color: 'primary.main', fontSize: 24 }} />
-                            </Box>
-                        )}
-
-                        {/* Title */}
-                        <Typography
-                            variant="h4"
-                            sx={{
-                                fontWeight: 700,
-                                color: 'text.emphasis',
-                                letterSpacing: '-0.02em',
-                                fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' },
-                                lineHeight: 1.2,
-                                fontFamily: '"IBM Plex Sans", sans-serif',
-                            }}
-                        >
-                            {title}
-                        </Typography>
-                    </Box>
-
-                    {/* Subtitle */}
-                    {subtitle && (
-                        <Typography
-                            variant="body1"
-                            sx={{
-                                color: 'text.secondary',
-                                fontSize: '0.95rem',
-                                maxWidth: '600px',
-                                lineHeight: 1.6,
-                                mt: 0.5,
-                                ml: Icon ? 8 : 0,
-                            }}
-                        >
-                            {subtitle}
-                        </Typography>
-                    )}
-                </Box>
-
-                {/* Action Buttons */}
-                {actions && (
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            gap: 1.5,
-                            alignItems: 'flex-start',
-                        }}
-                    >
-                        {actions}
-                    </Box>
-                )}
+              <Icon sx={{ color: iconColor, fontSize: 24 }} />
             </Box>
+          )}
+
+          {/* Title & Subtitle */}
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              variant="h4"
+              sx={{
+                color: '#ffffff',
+                fontWeight: 600,
+                letterSpacing: '-0.02em',
+                mb: subtitle ? 1 : 0,
+                fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+              }}
+            >
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography
+                variant="body1"
+                sx={{
+                  color: '#a8a399',
+                  maxWidth: '600px',
+                  fontSize: '0.9375rem',
+                }}
+              >
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
         </Box>
-    )
-}
+
+        {/* Actions Slot */}
+        {actions && (
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            {actions}
+          </Box>
+        )}
+      </Box>
+    </Box>
+  )
+})
+
+export default PageHeader

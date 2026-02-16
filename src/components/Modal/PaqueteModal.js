@@ -1,16 +1,27 @@
 'use client'
 
 import { useMutatePaquete } from '@/hooks/useMutatePaquete'
-import {
-    Box,
-    Button,
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    TextField
-} from '@mui/material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import TextField from '@mui/material/TextField'
 import { useFormik } from 'formik'
+import { useMemo } from 'react'
 import * as Yup from 'yup'
+
+const validationSchema = Yup.object({
+    factura_id: Yup.string().required('Factura requerida'),
+    tipo: Yup.string().required('Tipo requerido'),
+    codigo: Yup.string().required('Código requerido'),
+    largo: Yup.number().required('Largo requerido'),
+    alto: Yup.number().required('Alto requerido'),
+    ancho: Yup.number().required('Ancho requerido'),
+    peso: Yup.number().required('Peso requerido'),
+    volumen: Yup.number().required('Volumen requerido'),
+    precio: Yup.number().required('Precio requerido')
+})
 
 export default function PaqueteModal({ open, onClose, paquete }) {
     const { createPaquete, updatePaquete } = useMutatePaquete()
@@ -28,17 +39,7 @@ export default function PaqueteModal({ open, onClose, paquete }) {
             precio: paquete?.precio || ''
         },
         enableReinitialize: true,
-        validationSchema: Yup.object({
-            factura_id: Yup.string().required('Factura requerida'),
-            tipo: Yup.string().required('Tipo requerido'),
-            codigo: Yup.string().required('Código requerido'),
-            largo: Yup.number().required('Largo requerido'),
-            alto: Yup.number().required('Alto requerido'),
-            ancho: Yup.number().required('Ancho requerido'),
-            peso: Yup.number().required('Peso requerido'),
-            volumen: Yup.number().required('Volumen requerido'),
-            precio: Yup.number().required('Precio requerido')
-        }),
+        validationSchema,
         onSubmit: async (values, { resetForm }) => {
             try {
                 if (paquete) {

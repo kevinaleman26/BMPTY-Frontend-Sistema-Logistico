@@ -3,22 +3,36 @@
 import { useMutateCliente } from '@/hooks/useMutateCliente'
 import { useSucursal } from '@/hooks/useSucursal'
 import { useTipoDocumento } from '@/hooks/useTipoDocumento'
-import {
-    Box,
-    Button,
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    MenuItem,
-    TextField
-} from '@mui/material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import MenuItem from '@mui/material/MenuItem'
+import TextField from '@mui/material/TextField'
 import { useFormik } from 'formik'
+import { useMemo } from 'react'
 import * as Yup from 'yup'
 
 export default function ClienteModal({ open, onClose, cliente }) {
     const { createCliente, updateCliente } = useMutateCliente()
     const { data: tiposDoc } = useTipoDocumento()
     const { data: sucursales } = useSucursal()
+
+    const validationSchema = useMemo(() => Yup.object({
+        full_name: Yup.string().required('Nombre requerido'),
+        email: Yup.string().email('Email inválido').required('Email requerido'),
+        document: Yup.string().required('Número de documento requerido'),
+        phone: Yup.string().required('Teléfono requerido'),
+        password: cliente ? Yup.string() : Yup.string().required('Contraseña requerida'),
+        confirmPassword: cliente
+            ? Yup.string()
+            : Yup.string()
+                .oneOf([Yup.ref('password')], 'Las contraseñas no coinciden')
+                .required('Confirmación requerida'),
+        document_type: Yup.string().required('Tipo de documento requerido'),
+        sucursal_id: Yup.string().required('Sucursal requerida')
+    }), [cliente])
 
     const formik = useFormik({
         initialValues: {
@@ -33,20 +47,7 @@ export default function ClienteModal({ open, onClose, cliente }) {
             tarifa: cliente?.tarifa || ''
         },
         enableReinitialize: true,
-        validationSchema: Yup.object({
-            full_name: Yup.string().required('Nombre requerido'),
-            email: Yup.string().email('Email inválido').required('Email requerido'),
-            document: Yup.string().required('Número de documento requerido'),
-            phone: Yup.string().required('Teléfono requerido'),
-            password: cliente ? Yup.string() : Yup.string().required('Contraseña requerida'),
-            confirmPassword: cliente
-                ? Yup.string()
-                : Yup.string()
-                    .oneOf([Yup.ref('password')], 'Las contraseñas no coinciden')
-                    .required('Confirmación requerida'),
-            document_type: Yup.string().required('Tipo de documento requerido'),
-            sucursal_id: Yup.string().required('Sucursal requerida')
-        }),
+        validationSchema,
         onSubmit: async (values, { resetForm }) => {
             try {
                 if (cliente) {

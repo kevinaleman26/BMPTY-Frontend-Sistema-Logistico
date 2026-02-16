@@ -1,6 +1,7 @@
 'use client'
 
-import { Box, TextField } from '@mui/material'
+import Box from '@mui/material/Box'
+import TextField from '@mui/material/TextField'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useDebouncedCallback } from 'use-debounce'
 

@@ -27,7 +27,7 @@ export function useMutateTransferencia() {
                 throw new Error('Failed to calculate transfer total')
             }
 
-            // Step 2: Insert transferencia with calculated total
+            // Step 2: Insert transferencia with calculated total and operator tracking
             const { data: transferencia, error } = await supabase
                 .from('transferencia_sucursal')
                 .insert({
@@ -76,9 +76,28 @@ export function useMutateTransferencia() {
             // Total is preserved from creation time for historical accuracy
             delete rest.total
 
+            // Get current values to detect status changes
+            const { data: current, error: fetchErr } = await supabase
+                .from('transferencia_sucursal')
+                .select('delivery_status')
+                .eq('id', id)
+                .single()
+
+            if (fetchErr) throw fetchErr
+
+            const payload = { ...rest }
+
+            // If delivery_status changed to true, set received_at and operator
+            if (typeof rest.delivery_status === 'boolean' &&
+                rest.delivery_status !== current.delivery_status &&
+                rest.delivery_status === true) {
+                payload.received_at = new Date().toISOString()
+                // operador_receptor_id should be passed from the modal
+            }
+
             const { error } = await supabase
                 .from('transferencia_sucursal')
-                .update(rest)
+                .update(payload)
                 .eq('id', id)
 
             if (error) throw error

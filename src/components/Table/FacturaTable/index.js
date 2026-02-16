@@ -6,10 +6,14 @@ import { useFacturas } from '@/hooks/useFacturas'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import DescriptionIcon from '@mui/icons-material/Description'
 import EditIcon from '@mui/icons-material/Edit'
-import { Box, Chip, CircularProgress, IconButton } from '@mui/material'
+import Box from '@mui/material/Box'
+import Chip from '@mui/material/Chip'
+import CircularProgress from '@mui/material/CircularProgress'
+import IconButton from '@mui/material/IconButton'
 import { DataGrid } from '@mui/x-data-grid'
 import { PDFDownloadLink } from '@react-pdf/renderer'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useMemo, useCallback } from 'react'
 import FacturaFilters from './FacturaFilters'
 
 export default function FacturaTable({ onEdit }) {
@@ -17,20 +21,20 @@ export default function FacturaTable({ onEdit }) {
     const searchParams = useSearchParams()
     const { data, count, isLoading, page, limit } = useFacturas()
 
-    const handlePageChange = (newPage) => {
+    const handlePageChange = useCallback((newPage) => {
         const params = new URLSearchParams(searchParams.toString())
         params.set('page', newPage + 1)
         router.push(`?${params.toString()}`)
-    }
+    }, [searchParams, router])
 
-    const handlePageSizeChange = (newLimit) => {
+    const handlePageSizeChange = useCallback((newLimit) => {
         const params = new URLSearchParams(searchParams.toString())
         params.set('limit', newLimit)
         params.set('page', 1)
         router.push(`?${params.toString()}`)
-    }
+    }, [searchParams, router])
 
-    const columns = [
+    const columns = useMemo(() => [
         { field: 'id', headerName: 'Número', width: 80 },
         {
             field: 'cliente',
@@ -144,7 +148,7 @@ export default function FacturaTable({ onEdit }) {
                 )
             }
         }
-    ]
+    ], [onEdit])
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -154,10 +158,12 @@ export default function FacturaTable({ onEdit }) {
             {/* Tabla */}
             <Box sx={{ height: 500, width: '100%' }}>
                 {isLoading ? (
-                    <CircularProgress />
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        <CircularProgress />
+                    </Box>
                 ) : (
                     <DataGrid
-                        rows={data.data || []}
+                        rows={data?.data || []}
                         columns={columns}
                         rowCount={count || 0}
                         paginationMode="server"

@@ -2,22 +2,23 @@
 
 import PaqueteModal from '@/components/Modal/PaqueteModal'
 import PaqueteTable from '@/components/Table/PequeteTable'
-import { Box, Typography } from '@mui/material'
-import { useState } from 'react'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import { useState, useCallback } from 'react'
 
 export default function PaquetePage() {
     const [modalOpen, setModalOpen] = useState(false)
     const [selectedPaquete, setSelectedPaquete] = useState(null)
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setModalOpen(false)
         setSelectedPaquete(null)
-    }
+    }, [])
 
-    const handleEdit = (paquete) => {
+    const handleEdit = useCallback((paquete) => {
         setSelectedPaquete(paquete)
         setModalOpen(true)
-    }
+    }, [])
 
     return (
         <Box p={3}>
