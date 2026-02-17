@@ -51,6 +51,9 @@ export default function ClienteTable({ onEdit }) {
             field: 'sucursal',
             headerName: 'Sucursal',
             width: 160,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => row.sucursal?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
@@ -62,6 +65,9 @@ export default function ClienteTable({ onEdit }) {
             field: 'tipo_documento',
             headerName: 'Tipo Documento',
             width: 160,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => row.tipo_documento?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="secondary" size="small" />
@@ -72,6 +78,9 @@ export default function ClienteTable({ onEdit }) {
             field: 'accion',
             headerName: 'Acción',
             width: 120,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <Box sx={{ display: 'flex', gap: 1 }}>
                     <Tooltip title="Ver detalle">

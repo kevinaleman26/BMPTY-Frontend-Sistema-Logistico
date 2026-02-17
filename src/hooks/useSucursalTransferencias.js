@@ -11,14 +11,19 @@ export const useSucursalTransferencias = (sucursalId) => {
     const queryKey = ['sucursal-transferencias', sucursalId]
 
     const queryFn = async () => {
-        if (!sucursalId) return {
-            enviadas: [],
-            recibidas: [],
-            totalEnviado: 0,
-            totalRecibido: 0,
-            deudaAPagar: 0,      // Lo que esta sucursal debe a otras (recibió paquetes)
-            deudaPorCobrar: 0    // Lo que otras sucursales le deben (envió paquetes)
+        if (!sucursalId) {
+            console.log('❌ useSucursalTransferencias: No sucursalId provided')
+            return {
+                enviadas: [],
+                recibidas: [],
+                totalEnviado: 0,
+                totalRecibido: 0,
+                deudaAPagar: 0,
+                deudaPorCobrar: 0
+            }
         }
+
+        console.log('🔍 useSucursalTransferencias: Fetching data for sucursalId:', sucursalId)
 
         // Obtener transferencias ENVIADAS por esta sucursal
         const { data: enviadasData, error: enviadasError } = await supabase
@@ -33,7 +38,7 @@ export const useSucursalTransferencias = (sucursalId) => {
                 created_at,
                 delivery_date,
                 payment_date,
-                receptor_sucursal:receptor_sucursal_id (
+                receptor_sucursal:sucursal!transferencia_sucursal_receptor_sucursal_id_fkey (
                     id,
                     name
                 ),
@@ -41,19 +46,18 @@ export const useSucursalTransferencias = (sucursalId) => {
                     name
                 ),
                 solicitud_paquete (
-                    paquete_id,
-                    proveedor_paquetes:paquete_id (
-                        codigo,
-                        tipo,
-                        peso,
-                        precio
-                    )
+                    paquete_id
                 )
             `)
             .eq('emisor_sucursal_id', sucursalId)
             .order('created_at', { ascending: false })
 
-        if (enviadasError) throw enviadasError
+        console.log('📤 Enviadas:', { count: enviadasData?.length || 0, data: enviadasData, error: enviadasError })
+
+        if (enviadasError) {
+            console.error('❌ Error fetching enviadas:', enviadasError)
+            throw enviadasError
+        }
 
         // Obtener transferencias RECIBIDAS por esta sucursal
         const { data: recibidasData, error: recibidasError } = await supabase
@@ -68,7 +72,7 @@ export const useSucursalTransferencias = (sucursalId) => {
                 created_at,
                 delivery_date,
                 payment_date,
-                emisor_sucursal:emisor_sucursal_id (
+                emisor_sucursal:sucursal!transferencia_sucursal_emisor_sucursal_id_fkey (
                     id,
                     name
                 ),
@@ -76,19 +80,18 @@ export const useSucursalTransferencias = (sucursalId) => {
                     name
                 ),
                 solicitud_paquete (
-                    paquete_id,
-                    proveedor_paquetes:paquete_id (
-                        codigo,
-                        tipo,
-                        peso,
-                        precio
-                    )
+                    paquete_id
                 )
             `)
             .eq('receptor_sucursal_id', sucursalId)
             .order('created_at', { ascending: false })
 
-        if (recibidasError) throw recibidasError
+        console.log('📥 Recibidas:', { count: recibidasData?.length || 0, data: recibidasData, error: recibidasError })
+
+        if (recibidasError) {
+            console.error('❌ Error fetching recibidas:', recibidasError)
+            throw recibidasError
+        }
 
         // Calcular totales de transferencias enviadas
         const totalEnviado = (enviadasData || []).reduce((sum, t) => sum + (Number(t.total) || 0), 0)
@@ -107,7 +110,7 @@ export const useSucursalTransferencias = (sucursalId) => {
             .filter(t => !t.payment_status)
             .reduce((sum, t) => sum + (Number(t.total) || 0), 0)
 
-        return {
+        const result = {
             enviadas: enviadasData || [],
             recibidas: recibidasData || [],
             totalEnviado,
@@ -115,6 +118,10 @@ export const useSucursalTransferencias = (sucursalId) => {
             deudaAPagar,
             deudaPorCobrar
         }
+
+        console.log('✅ useSucursalTransferencias result:', result)
+
+        return result
     }
 
     const { data, isLoading, isError, error } = useQuery({

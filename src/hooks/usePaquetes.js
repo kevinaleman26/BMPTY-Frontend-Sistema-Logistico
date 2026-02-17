@@ -86,7 +86,23 @@ export const usePaquetes = () => {
         const { data: rows, error: rowsError } = await rowsQuery
         if (rowsError) throw rowsError
 
-        return { data: rows ?? [], count: count ?? 0 }
+        // Obtener códigos de paquetes facturados para marcarlos
+        const { data: facturadosData } = await supabase
+            .from('factura_detalle')
+            .select('paquete_id')
+            .in('paquete_id', paqueteCodigos)
+
+        const codigosFacturados = new Set(
+            (facturadosData ?? []).map(item => item.paquete_id)
+        )
+
+        // Agregar propiedad 'facturado' a cada paquete
+        const rowsConFacturado = (rows ?? []).map(row => ({
+            ...row,
+            facturado: codigosFacturados.has(row.codigo)
+        }))
+
+        return { data: rowsConFacturado, count: count ?? 0 }
     }
 
     const { data, isLoading, isError, error } = useQuery({

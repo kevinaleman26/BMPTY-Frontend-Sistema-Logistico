@@ -18,8 +18,12 @@ export function useMutatePaquete() {
     })
 
     const updatePaquete = useMutation({
-        mutationFn: async ({ id, ...rest }) => {
-            const { error } = await supabase.from('paquetes').update(rest).eq('id', id)
+        mutationFn: async ({ codigo, ...rest }) => {
+            // Actualizar en proveedor_paquetes usando codigo como identificador
+            const { error } = await supabase
+                .from('proveedor_paquetes')
+                .update(rest)
+                .eq('codigo', codigo)
             if (error) throw error
         },
         onSuccess: () => {

@@ -38,6 +38,9 @@ export default function OperadorTable({ onEdit }) {
             field: 'role',
             headerName: 'Rol',
             flex: 1,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => row.role?.name || 'Sin rol',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
@@ -47,6 +50,9 @@ export default function OperadorTable({ onEdit }) {
             field: 'accion',
             headerName: 'Acción',
             width: 100,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <IconButton onClick={() => onEdit(params.row)}>
                     <EditIcon sx={{ color: '#fff' }} />

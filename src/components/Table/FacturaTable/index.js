@@ -40,6 +40,7 @@ export default function FacturaTable({ onEdit }) {
             field: 'cliente',
             headerName: 'Cliente',
             flex: 1,
+            minWidth: 150,
             valueGetter: (value, row) =>
                 row.cliente?.full_name || row.cliente?.email || '—',
             renderCell: (params) => params.value
@@ -49,6 +50,9 @@ export default function FacturaTable({ onEdit }) {
             headerName: 'Sucursal',
             flex: 1,
             minWidth: 160,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => row.sucursal?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
@@ -58,6 +62,10 @@ export default function FacturaTable({ onEdit }) {
             field: 'metodo_pago',
             headerName: 'Método de pago',
             flex: 1,
+            minWidth: 150,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => row.metodo_pago?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
@@ -67,6 +75,10 @@ export default function FacturaTable({ onEdit }) {
             field: 'delivery_status',
             headerName: 'Estado Entrega',
             flex: 1,
+            minWidth: 140,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <Chip
                     label={params.value ? 'Entregado' : 'Pendiente'}
@@ -79,6 +91,10 @@ export default function FacturaTable({ onEdit }) {
             field: 'payment_status',
             headerName: 'Estado Pago',
             flex: 1,
+            minWidth: 140,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <Chip
                     label={params.value ? 'Pagado' : 'Pendiente'}
@@ -91,6 +107,10 @@ export default function FacturaTable({ onEdit }) {
             field: 'total',
             headerName: 'Total',
             flex: 1,
+            minWidth: 120,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: ({ value }) =>
                 value != null ? `$${Number(value).toFixed(2)}` : '—'
         },
@@ -98,6 +118,10 @@ export default function FacturaTable({ onEdit }) {
             field: 'created_at',
             headerName: 'Fecha',
             flex: 1,
+            minWidth: 180,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: ({ value }) =>
                 value ? new Date(value).toLocaleString() : '—'
         },
@@ -105,6 +129,9 @@ export default function FacturaTable({ onEdit }) {
             field: 'accion',
             headerName: 'Acción',
             width: 120,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => {
                 const { id, sucursal, factura_detalle, subtotal, descuento, otros, impuestos, total, cliente } = params.row
                 const paquetes = factura_detalle.map(item => {

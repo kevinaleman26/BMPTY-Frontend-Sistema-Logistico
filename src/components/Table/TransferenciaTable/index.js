@@ -49,6 +49,10 @@ export default function TransferenciaTable({ onEdit }) {
             field: 'emisor_sucursal',
             headerName: 'Sucursal Emisora',
             flex: 1,
+            minWidth: 150,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => row.emisor_sucursal?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
@@ -58,6 +62,10 @@ export default function TransferenciaTable({ onEdit }) {
             field: 'receptor_sucursal',
             headerName: 'Sucursal Receptora',
             flex: 1,
+            minWidth: 150,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => row.receptor_sucursal?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
@@ -67,6 +75,10 @@ export default function TransferenciaTable({ onEdit }) {
             field: 'metodo_pago',
             headerName: 'Método de Pago',
             flex: 1,
+            minWidth: 150,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => row.metodo_pago?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
@@ -76,6 +88,9 @@ export default function TransferenciaTable({ onEdit }) {
             field: 'delivery_status',
             headerName: 'Estado Entrega',
             width: 140,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <Chip
                     label={params.value ? 'Entregado' : 'Pendiente'}
@@ -88,6 +103,9 @@ export default function TransferenciaTable({ onEdit }) {
             field: 'payment_status',
             headerName: 'Estado Pago',
             width: 140,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <Chip
                     label={params.value ? 'Pagado' : 'Pendiente'}
@@ -100,12 +118,19 @@ export default function TransferenciaTable({ onEdit }) {
             field: 'created_at',
             headerName: 'Creado en',
             flex: 1,
+            minWidth: 180,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => formatDate(params.value)
         },
         {
             field: 'accion',
             headerName: 'Acción',
             width: 120,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <IconButton onClick={() => onEdit(params.row)}>
                     <EditIcon sx={{ color: '#fff' }} />

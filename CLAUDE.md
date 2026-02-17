@@ -165,6 +165,32 @@ src/
    - URL state management for filters via `useSearchParams` and `useRouter`
    - Consistent dark theme styling (#111 background, #222 headers)
 
+   **CRITICAL: MUI DataGrid Column Configuration**
+   - **ALL columns with `renderCell` MUST include these properties:**
+     ```javascript
+     {
+         field: 'column_name',
+         headerName: 'Column Name',
+         sortable: false,          // REQUIRED
+         filterable: false,        // REQUIRED
+         disableColumnMenu: true,  // REQUIRED
+         renderCell: (params) => (...)
+     }
+     ```
+   - **Flex columns:** Always add `minWidth` to prevent collapsing (e.g., `flex: 1, minWidth: 150`)
+   - **Common use cases:** Status chips, action buttons, formatted dates, reference lookups
+   - See detailed documentation in project memory: `mui-datagrid-patterns.md`
+
+   **CRITICAL: Custom Checkbox Pattern**
+   - **NEVER use `checkboxSelection` prop** - it has a critical bug in MUI X DataGrid 8.27.x
+   - **ALWAYS use custom checkbox column** - see reference implementation in `SucursalTable/index.js`
+   - Pattern includes:
+     * Custom checkbox column as FIRST column
+     * `handleSelectAll` and `handleSelectOne` callbacks
+     * Selection counter indicator
+     * Themed checkboxes (#f4b223)
+   - See complete guide: `.claude/memory/custom-checkbox-pattern.md`
+
 2. **Modals**:
    - Formik + Yup for form management and validation
    - Dual-mode: create (no initial data) vs edit (with cliente/operador object)

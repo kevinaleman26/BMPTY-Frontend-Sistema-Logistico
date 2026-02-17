@@ -43,6 +43,16 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
         isLoading: isLoadingTransferencias
     } = useSucursalTransferencias(sucursal?.id)
 
+    console.log('🏢 SucursalDetailModal:', {
+        sucursal: sucursal?.name,
+        sucursalId: sucursal?.id,
+        enviadas: enviadas.length,
+        recibidas: recibidas.length,
+        deudaAPagar,
+        deudaPorCobrar,
+        isLoadingTransferencias
+    })
+
     // Columnas para las tablas de facturas
     const facturaColumns = useMemo(() => [
         {
@@ -61,6 +71,7 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
             field: 'cliente',
             headerName: 'Cliente',
             flex: 1,
+            minWidth: 150,
             valueGetter: (value, row) => row.cliente?.full_name || '—'
         },
         {
@@ -79,6 +90,9 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
             field: 'total',
             headerName: 'Total',
             width: 120,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => `$${row.total?.toFixed(2) || '0.00'}`,
             renderCell: (params) => (
                 <Typography sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 600 }}>
@@ -105,6 +119,7 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
             field: 'sucursal',
             headerName: 'Sucursal',
             flex: 1,
+            minWidth: 150,
             valueGetter: (value, row) => row.receptor_sucursal?.name || row.emisor_sucursal?.name || '—'
         },
         {
@@ -117,6 +132,9 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
             field: 'delivery_status',
             headerName: 'Estado Entrega',
             width: 140,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <Chip
                     label={params.value ? 'Entregado' : 'Pendiente'}
@@ -129,6 +147,9 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
             field: 'payment_status',
             headerName: 'Estado Pago',
             width: 140,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <Chip
                     label={params.value ? 'Pagado' : 'Pendiente'}
@@ -141,6 +162,9 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
             field: 'total',
             headerName: 'Total',
             width: 120,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => `$${Number(row.total || 0).toFixed(2)}`,
             renderCell: (params) => (
                 <Typography sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 600 }}>
@@ -472,8 +496,12 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
                                         <DataGrid
                                             rows={enviadas}
                                             columns={transferenciaColumns}
-                                            pageSize={5}
-                                            rowsPerPageOptions={[5]}
+                                            initialState={{
+                                                pagination: {
+                                                    paginationModel: { pageSize: 5, page: 0 }
+                                                }
+                                            }}
+                                            pageSizeOptions={[5, 10]}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
                                             localeText={{
@@ -492,8 +520,12 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
                                         <DataGrid
                                             rows={recibidas}
                                             columns={transferenciaColumns}
-                                            pageSize={5}
-                                            rowsPerPageOptions={[5]}
+                                            initialState={{
+                                                pagination: {
+                                                    paginationModel: { pageSize: 5, page: 0 }
+                                                }
+                                            }}
+                                            pageSizeOptions={[5, 10]}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
                                             localeText={{
@@ -539,8 +571,12 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
                                         <DataGrid
                                             rows={paid}
                                             columns={facturaColumns}
-                                            pageSize={5}
-                                            rowsPerPageOptions={[5]}
+                                            initialState={{
+                                                pagination: {
+                                                    paginationModel: { pageSize: 5, page: 0 }
+                                                }
+                                            }}
+                                            pageSizeOptions={[5, 10]}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
                                             localeText={{
@@ -559,8 +595,12 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
                                         <DataGrid
                                             rows={unpaid}
                                             columns={facturaColumns}
-                                            pageSize={5}
-                                            rowsPerPageOptions={[5]}
+                                            initialState={{
+                                                pagination: {
+                                                    paginationModel: { pageSize: 5, page: 0 }
+                                                }
+                                            }}
+                                            pageSizeOptions={[5, 10]}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
                                             localeText={{
