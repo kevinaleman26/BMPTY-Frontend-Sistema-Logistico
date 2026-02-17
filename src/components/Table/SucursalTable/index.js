@@ -1,20 +1,25 @@
 'use client'
 
 import { useSucursales } from '@/hooks/useSucursales'
+import SucursalDetailModal from '@/components/Modal/SucursalDetailModal'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import EditIcon from '@mui/icons-material/Edit'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import IconButton from '@mui/material/IconButton'
 import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState } from 'react'
 import SucursalFilters from './SucursalFilters'
 
 export default function SucursalTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const [selectedRows, setSelectedRows] = useState([])
+    const [detailModalOpen, setDetailModalOpen] = useState(false)
+    const [selectedSucursal, setSelectedSucursal] = useState(null)
 
     const { data, count, isLoading, page, limit } = useSucursales()
 
@@ -30,6 +35,16 @@ export default function SucursalTable({ onEdit }) {
         params.set('page', 1)
         router.push(`?${params.toString()}`)
     }, [searchParams, router])
+
+    const handleOpenDetail = useCallback((sucursal) => {
+        setSelectedSucursal(sucursal)
+        setDetailModalOpen(true)
+    }, [])
+
+    const handleCloseDetail = useCallback(() => {
+        setDetailModalOpen(false)
+        setSelectedSucursal(null)
+    }, [])
 
     const columns = useMemo(() => [
         { field: 'id', headerName: 'ID', width: 80 },
@@ -53,12 +68,17 @@ export default function SucursalTable({ onEdit }) {
             headerName: 'Acción',
             width: 120,
             renderCell: (params) => (
-                <IconButton onClick={() => onEdit(params.row)}>
-                    <EditIcon sx={{ color: '#fff' }} />
-                </IconButton>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    <IconButton onClick={() => handleOpenDetail(params.row)} title="Ver detalle">
+                        <VisibilityIcon sx={{ color: '#fff' }} />
+                    </IconButton>
+                    <IconButton onClick={() => onEdit(params.row)} title="Editar">
+                        <EditIcon sx={{ color: '#fff' }} />
+                    </IconButton>
+                </Box>
             )
         }
-    ], [onEdit])
+    ], [onEdit, handleOpenDetail])
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -86,11 +106,23 @@ export default function SucursalTable({ onEdit }) {
                             handlePageChange(page)
                             handlePageSizeChange(pageSize)
                         }}
+                        checkboxSelection
                         disableRowSelectionOnClick
+                        onRowSelectionModelChange={(newSelection) => {
+                            setSelectedRows(newSelection)
+                        }}
+                        rowSelectionModel={selectedRows}
                         sx={dataGridStyles}
                     />
                 )}
             </Box>
+
+            {/* Modal de Detalle */}
+            <SucursalDetailModal
+                open={detailModalOpen}
+                onClose={handleCloseDetail}
+                sucursal={selectedSucursal}
+            />
         </Box>
     )
 }
