@@ -48,13 +48,22 @@ src/
 │   │   ├── paquetes/
 │   │   ├── facturacion/
 │   │   └── transferencia-sucursal/
-│   └── api/                # API routes (Next.js Route Handlers)
-│       ├── cliente/
-│       └── operador/
+│   ├── api/                # API routes (Next.js Route Handlers)
+│   │   ├── cliente/
+│   │   └── operador/
+│   └── providers.js        # React Query provider wrapper
 ├── components/
 │   ├── Dashboard/          # Role-specific dashboards (SuperAdmin, Admin, Operador, Cliente)
 │   ├── Table/              # DataGrid tables with filters and pagination
 │   ├── Modal/              # Formik-based modals for CRUD operations
+│   │   ├── ClienteDetailModal.js    # Cliente details with packages/invoices
+│   │   ├── SucursalDetailModal.js   # Sucursal details with packages
+│   │   ├── PaqueteTimelineModal.js  # Package chronology modal
+│   │   └── ...
+│   ├── Timeline/           # Timeline visualization components
+│   │   └── PaqueteTimeline.js       # Visual package chronology with events
+│   ├── Card/               # Card components
+│   │   └── SucursalDebtCard.js      # Shows inter-branch debt
 │   ├── Menu/               # Role-based navigation menus
 │   ├── Form/               # Reusable form components
 │   ├── Dropdown/           # Dropdown components (Sucursal, TipoDocumento, Role)
@@ -63,12 +72,17 @@ src/
 ├── hooks/
 │   ├── useSession.js       # Custom session management hook
 │   ├── use[Entity].js      # Data fetching hooks (useClientes, usePaquetes, etc.)
-│   └── useMutate[Entity].js # Mutation hooks for create/update operations
+│   ├── useMutate[Entity].js # Mutation hooks for create/update operations
+│   ├── useClientePackages.js  # Fetch client packages and invoices
+│   ├── usePaqueteTimeline.js  # Fetch package chronology
+│   └── useSucursalPackages.js # Fetch branch packages
 ├── lib/
 │   ├── supabase.js         # Client-side Supabase client
 │   └── supabaseAdmin.js    # Server-side admin Supabase client
-└── services/
-    └── authService.js      # Authentication service functions
+├── services/
+│   └── authService.js      # Authentication service functions
+└── styles/
+    └── tokens.js           # Design system tokens (colors, spacing, etc.)
 ```
 
 ## Key Architectural Patterns
@@ -116,12 +130,49 @@ src/
    - Display metrics, tables, and role-appropriate data
    - Each role has a separate dashboard implementation
 
+4. **Timeline Component** (`PaqueteTimeline.js`):
+   - Visual chronology of package lifecycle
+   - 6 event types with unique icons and colors:
+     * INGRESO (green, AddBoxIcon)
+     * TRANSFERENCIA_ENVIADA (blue, LocalShippingIcon)
+     * TRANSFERENCIA_RECIBIDA (green, CheckCircleIcon)
+     * FACTURADO (yellow #f4b223, ReceiptIcon)
+     * ENTREGADO (purple, PersonIcon)
+     * TRANSFERENCIA_CANCELADA (red, CancelIcon)
+   - Vertical layout with connecting lines and gradients
+   - Displays: timestamp, branch, operator, client, invoice #
+   - Industrial design with hover effects and color-coded shadows
+
+5. **Detail Modals**:
+   - `ClienteDetailModal`: Shows client info, payment summary, and accordions for:
+     * Facturas: Paid vs Unpaid invoices with totals
+     * Paquetes: Delivered vs Pending packages with timeline access
+   - `SucursalDetailModal`: Shows branch info and packages by status
+   - `PaqueteTimelineModal`: Wrapper for timeline component
+
+6. **Debt Tracking**:
+   - `SucursalDebtCard`: Displays inter-branch debt in transfer modal
+   - Real-time debt calculation based on transferred package values
+   - Shown when creating transfers to help track financial obligations
+
 ### Styling Conventions
 
-- Dark theme throughout: `#000` (main bg), `#111` (cards), `#222` (headers), `#444` (borders)
-- Text color: `#fff` for primary text
-- Consistent sidebar width: 260px (drawerWidth constant)
-- MUI theme customization via sx prop
+- **Industrial Dark Theme**:
+  - Main bg: `#000`
+  - Cards: `#111`
+  - Headers: `#222`
+  - Borders: `#444`
+  - Accent: `#f4b223` (yellow/gold)
+- **Design Tokens** (`src/styles/tokens.js`):
+  - Centralized color system (text.primary, text.secondary, text.muted, etc.)
+  - Surface colors (surface.base, surface.elevated)
+  - Border colors (border.subtle, border.soft)
+- **Typography**:
+  - Primary: System fonts
+  - Monospace: JetBrains Mono for codes and timestamps
+- **Glassmorphism**: Semi-transparent backgrounds with backdrop-blur
+- **Sidebar**: Consistent 260px width (drawerWidth constant)
+- **MUI Customization**: All styling via sx prop for consistency
 
 ## Important Development Notes
 
@@ -173,10 +224,184 @@ Always invalidate relevant queries after mutations.
 - Update corresponding Menu component (SuperAdminMenu, AdminMenu, OperadorMenu, ClienteMenu)
 - Consider adding conditional rendering in dashboards
 
+## Key Features & Modules
+
+### 1. Package Chronology System (Timeline)
+
+**Purpose**: Complete audit trail of package lifecycle from entry to delivery.
+
+**How it works**:
+- Automatic event logging via database triggers
+- Captures operator, timestamp, branch, and client for each event
+- Visual timeline component shows complete history
+
+**Event Types**:
+1. **INGRESO**: Package registered in system
+2. **TRANSFERENCIA_ENVIADA**: Package sent to another branch
+3. **TRANSFERENCIA_RECIBIDA**: Package received at destination branch
+4. **FACTURADO**: Package invoiced to client
+5. **ENTREGADO**: Package delivered to client
+6. **TRANSFERENCIA_CANCELADA**: Transfer cancelled
+
+**User Experience**:
+- Click eye icon on any client in Clientes module
+- View accordions with Facturas and Paquetes
+- Click timeline icon (📈) next to package code
+- See complete chronology in visual timeline modal
+
+**Technical Implementation**:
+- Database: `paquete_evento` table + 5 triggers
+- RPC: `obtener_cronologia_paquete(codigo)`
+- Frontend: `PaqueteTimeline.js` + `PaqueteTimelineModal.js`
+- Hooks: `usePaqueteTimeline.js`
+
+### 2. Inter-Branch Debt Management
+
+**Business Logic**:
+When Branch A transfers packages to Branch B:
+- B receives packages and invoices clients
+- B collects payment from clients
+- B owes money to A (A paid the original provider)
+
+**Features**:
+- Automatic debt calculation based on package weight × tarifa
+- Real-time debt display in transfer creation modal
+- Payment status tracking on transfers
+- Debt card shows: "Sucursal [Name] debe: $X.XX"
+
+**Components**:
+- `SucursalDebtCard.js`: Displays current debt
+- Shown in `TransferenciaModal.js` when receptor branch is selected
+
+**Database**:
+- `transferencia_sucursal.total`: Transfer value
+- `transferencia_sucursal.payment_status`: Debt paid/unpaid
+
+### 3. Client Detail Modal
+
+**Features**:
+- Complete client information
+- Payment summary cards (Total Paid / Total Unpaid)
+- Two accordions:
+  * **Facturas**: Tables for paid and unpaid invoices with totals
+  * **Paquetes**: Tables for delivered and pending packages
+- Timeline access: Click 📈 icon on any package code
+
+**Component**: `ClienteDetailModal.js`
+**Hook**: `useClientePackages.js` (aggregates invoices and packages)
+
+### 4. Branch Detail Modal
+
+**Features**:
+- Branch information
+- Packages currently in branch by status
+- Similar accordion structure to client modal
+
+**Component**: `SucursalDetailModal.js`
+**Hook**: `useSucursalPackages.js`
+
 ## Database Schema Notes
+
+### Core Tables
 - `cliente` table: Stores customer data, uses auth user ID as primary key
 - `operador` table: Stores operator data, references `sucursal` and `role` tables
 - `sucursal` table: Branch/location data, contains `tasa` (rate) field used for pricing
-- `paquete` table: Package tracking
-- `factura` table: Invoice records
-- `transferencia` table: Branch transfer records
+- `proveedor_paquetes` table: Package tracking with dimensions, weight, price
+- `factura` table: Invoice records with payment/delivery status
+- `transferencia_sucursal` table: Branch transfer records
+- `solicitud_paquete` table: Links packages to transfers
+- `factura_detalle` table: Links packages to invoices
+
+### Package Chronology System (Audit Trail)
+
+#### paquete_evento table
+Stores all lifecycle events for each package:
+- `id`: BIGSERIAL primary key
+- `paquete_id`: Package tracking code (references proveedor_paquetes.codigo)
+- `evento_tipo`: Event type (INGRESO, TRANSFERENCIA_ENVIADA, TRANSFERENCIA_RECIBIDA, FACTURADO, ENTREGADO, TRANSFERENCIA_CANCELADA)
+- `sucursal_id`: Branch where event occurred
+- `operador_id`: Operator who performed the action
+- `cliente_id`: Client involved (for invoicing/delivery events)
+- `transferencia_id`: Related transfer (if applicable)
+- `factura_id`: Related invoice (if applicable)
+- `detalles`: JSONB field for additional event-specific data
+- `created_at`: Timestamp of the event
+
+#### Operator Tracking Columns
+Added to existing tables for audit trail:
+- `proveedor_paquetes`: created_at, sucursal_origen_id, operador_registro_id
+- `transferencia_sucursal`: operador_emisor_id, operador_receptor_id, received_at
+- `factura`: operador_factura_id, operador_entrega_id, delivery_date
+- `solicitud_paquete`: created_at
+- `factura_detalle`: created_at
+
+#### Automatic Event Registration (Triggers)
+5 triggers automatically log events:
+1. `trg_paquete_ingreso`: Fires on INSERT to proveedor_paquetes
+2. `trg_transferencia_enviada`: Fires on INSERT to solicitud_paquete
+3. `trg_transferencia_recibida`: Fires on UPDATE to transferencia_sucursal (delivery_status change)
+4. `trg_paquete_facturado`: Fires on INSERT to factura_detalle
+5. `trg_paquete_entregado`: Fires on UPDATE to factura (delivery_status change)
+
+#### RPC Functions
+- `registrar_evento_paquete(...)`: Manually register an event (used by triggers)
+- `obtener_cronologia_paquete(p_paquete_id TEXT)`: Returns complete chronological timeline with joined data (sucursal name, operador name, cliente name)
+
+### Inter-Branch Debt System
+
+When Sucursal A transfers packages to Sucursal B, and B invoices/collects from clients, B owes money to A. The system tracks:
+- `transferencia_sucursal.total`: Calculated total value of transferred packages
+- `transferencia_sucursal.payment_status`: Whether receiving branch has paid sending branch
+- `SucursalDebtCard` component displays current debt when creating transfers
+
+## Database Migrations
+
+Located in `supabase/migrations/`:
+
+### 20260205_add_total_to_transferencias.sql
+- Adds `total` column to transferencia_sucursal
+- Implements inter-branch debt tracking
+
+### 20260216_add_package_timeline.sql
+**Major migration - Package Chronology System**
+
+Creates:
+- `paquete_evento` table with indexes
+- 5 triggers for automatic event logging
+- 2 RPC functions (registrar_evento_paquete, obtener_cronologia_paquete)
+- New audit columns in existing tables
+- Backfill script for historical INGRESO events (781 packages)
+- Grants permissions to authenticated users
+
+Steps: 7 major sections, ~450 lines of SQL
+
+### 20260216_fix_obtener_cronologia_function.sql
+**Fix migration**
+- Corrects return types in obtener_cronologia_paquete function
+- Adds explicit `::TEXT` casts for VARCHAR columns
+- Fixes "structure of query does not match function result type" error
+
+### Applying Migrations
+
+**Via Supabase Dashboard** (Recommended):
+1. Go to SQL Editor in Supabase Dashboard
+2. Copy migration file content
+3. Execute
+
+**Via Supabase CLI**:
+```bash
+npx supabase link --project-ref iidnphzcihsdjplgcnqo
+npx supabase db push
+```
+
+See `INSTRUCCIONES_MIGRACION.md` and `SETUP_SUPABASE_CLI.md` for detailed instructions.
+
+### Migration Verification
+
+Run queries in `VERIFICACION_MIGRACION.sql` to verify:
+- Tables exist
+- Triggers are active
+- Functions are created
+- Indexes are present
+- Permissions are granted
+- Summary query shows OK/FALTA status for each component
