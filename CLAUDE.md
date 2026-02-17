@@ -94,6 +94,52 @@ src/
 - **Protected Routes**: All routes under `(privado)` are wrapped with `ProtectedRoute` component
 - **Role-based Navigation**: Different menu components render based on `session.role.id` in layout.js:47-52
 
+#### Detailed Role Permissions
+
+**SuperAdmin (role_id: 1) - System-wide access:**
+- Access: All modules (Sucursales, Operadores, Clientes, Paquetes, Transferencias, Deudas, Facturación)
+- Scope: ALL data across ALL branches
+- Query restriction: None - sees everything
+- Can: Create/edit/delete all entities, manage all branches, view all reports
+- Menu: 8 items (Dashboard, Sucursales, Operadores, Clientes, Transferencias, Deudas, Facturación, Paquetes)
+
+**Admin (role_id: 2) - Branch administrator:**
+- Access: Operadores, Clientes, Paquetes, Facturación
+- Scope: ONLY their branch (`sucursal_id = session.sucursal.id`)
+- Query restriction: `if (session.role.id !== 1) query = query.eq("sucursal_id", session.sucursal.id)`
+- Can: Manage operators and clients in their branch, create invoices, register packages
+- Cannot: View other branches, create transfers, manage branch settings
+- Menu: 5 items (Dashboard, Operadores, Clientes, Paquetes, Facturación)
+
+**Operador (role_id: 3) - Branch employee:**
+- Access: Clientes (read-only), Paquetes, Facturación (limited)
+- Scope: ONLY their branch (`sucursal_id = session.sucursal.id`)
+- Query restriction: Same as Admin but with read-only restrictions
+- Can: Register packages, create invoices, mark as delivered (registers their ID), view clients
+- Cannot: Create/edit clients, create/edit operators, manage branch data
+- Menu: 4 items (Dashboard, Clientes, Paquetes, Facturación)
+
+**Cliente (role_id: 4) - End customer:**
+- Access: Paquetes (own only), Facturación (own only)
+- Scope: ONLY their own data (`cliente_id = session.id`)
+- Query restriction: `query = query.eq("cliente_id", session.id)`
+- Can: View their packages, view their invoices, download PDFs, see timeline of their packages
+- Cannot: Create/edit anything, view other clients' data
+- Menu: 3 items (Dashboard, Paquetes, Facturación)
+
+#### Permission Matrix by Module
+
+| Module | SuperAdmin | Admin | Operador | Cliente |
+|--------|-----------|-------|----------|---------|
+| **Sucursales** | CRUD | ❌ | ❌ | ❌ |
+| **Operadores** | CRUD all branches | CRUD own branch | ❌ | ❌ |
+| **Clientes** | CRUD all branches | CRUD own branch | Read own branch | ❌ |
+| **Paquetes** | CRUD all | CRUD own branch | CRUD own branch | Read own only |
+| **Transferencias** | CRUD all | ❌ | ❌ | ❌ |
+| **Deudas** | View all | ❌ | ❌ | ❌ |
+| **Facturación** | CRUD all branches | CRUD own branch | Create + mark delivered | Read own only |
+| **Timeline** | View all | View own branch | View own branch | View own packages |
+
 ### Data Layer
 
 1. **Supabase Clients**:
@@ -299,6 +345,128 @@ When Branch A transfers packages to Branch B:
 
 **Component**: `SucursalDetailModal.js`
 **Hook**: `useSucursalPackages.js`
+
+## Role-Based Access Control (RBAC)
+
+### Code-Level Permission Checks
+
+#### Query Restrictions
+All data fetching hooks implement role-based filtering:
+
+```javascript
+// Pattern used in useFacturas.js, useClientes.js, useTransferencias.js, useOperadores.js
+if (session.role.id !== 1) {
+    query = query.eq("sucursal_id", session.sucursal.id)
+}
+// SuperAdmin (id: 1) bypasses restriction, others see only their branch
+```
+
+#### Menu Rendering
+Menu components are selected based on role:
+
+```javascript
+// In layout.js:47-52
+{session?.role?.id === 1 && <SuperAdminMenu />}
+{session?.role?.id === 2 && <AdminMenu />}
+{session?.role?.id === 3 && <OperadorMenu />}
+{session?.role?.id === 4 && <ClienteMenu />}
+```
+
+### Permission Implementation Details
+
+#### SuperAdmin (role_id: 1)
+**Menu Items**: Dashboard, Sucursales, Operadores, Clientes, Transferencias, Deudas, Facturación, Paquetes
+
+**Data Access**:
+- No query restrictions - `session.role.id !== 1` check bypasses all filters
+- Sees all branches, all operators, all clients, all packages, all invoices
+- Full CRUD on all entities
+
+**Special Capabilities**:
+- Create/edit/delete branches
+- Assign operators to any branch
+- View inter-branch debts
+- Create transfers between any branches
+- Access system-wide analytics
+
+#### Admin (role_id: 2)
+**Menu Items**: Dashboard, Operadores, Clientes, Paquetes, Facturación
+
+**Data Access**:
+- Branch-restricted: `query.eq("sucursal_id", session.sucursal.id)`
+- Sees only operators, clients, packages, invoices from their branch
+- Cannot see data from other branches
+
+**Capabilities**:
+- Create operators for their branch (role: Operador only, not Admin)
+- Full CRUD on clients in their branch
+- Register packages in their branch
+- Create and manage invoices for their branch
+- View package timeline for their branch
+
+**Restrictions**:
+- Cannot create/edit branches
+- Cannot create transfers (no access to Transferencias module)
+- Cannot view inter-branch debts
+- Cannot promote operators to Admin role
+
+#### Operador (role_id: 3)
+**Menu Items**: Dashboard, Clientes, Paquetes, Facturación
+
+**Data Access**:
+- Branch-restricted: `query.eq("sucursal_id", session.sucursal.id)`
+- Read-only access to clients
+- Full access to packages in their branch
+- Limited access to invoices (can create and mark delivered)
+
+**Capabilities**:
+- View client list and details (read-only)
+- Register new packages (records their ID as operador_registro_id)
+- Create invoices
+- Mark invoices as delivered (records their ID as operador_entrega_id)
+- View package timeline
+
+**Restrictions**:
+- Cannot create/edit clients
+- Cannot create/edit operators
+- Cannot change invoice payment status (only delivery)
+- Cannot access Transferencias module
+
+#### Cliente (role_id: 4)
+**Menu Items**: Dashboard, Paquetes, Facturación
+
+**Data Access**:
+- Self-restricted: `query.eq("cliente_id", session.id)`
+- Only sees their own packages and invoices
+- No access to other clients' data
+
+**Capabilities**:
+- View their packages with status
+- View package timeline (their packages only)
+- View their invoices (paid/unpaid)
+- Download PDF of their invoices
+- Filter by status and date
+
+**Restrictions**:
+- Cannot create/edit anything
+- Read-only access to all modules
+- Cannot see other clients' data
+- No access to operators, branches, or transfers
+
+### Operator Tracking in Chronology System
+
+When operators perform actions, their ID is automatically recorded:
+
+| Action | Table | Column | Trigger/Manual |
+|--------|-------|--------|----------------|
+| Register package | proveedor_paquetes | operador_registro_id | Manual (from session) |
+| Create transfer | transferencia_sucursal | operador_emisor_id | Manual (from session) |
+| Receive transfer | transferencia_sucursal | operador_receptor_id | Manual (on status change) |
+| Create invoice | factura | operador_factura_id | Manual (from session) |
+| Mark delivered | factura | operador_entrega_id | Manual (on status change) |
+| All events | paquete_evento | operador_id | Automatic (via triggers) |
+
+This creates a complete audit trail of who did what and when.
 
 ## Database Schema Notes
 
