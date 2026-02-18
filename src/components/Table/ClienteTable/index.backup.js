@@ -15,7 +15,6 @@ import ClienteDetailModal from '@/components/Modal/ClienteDetailModal'
 import { EditIcon, VisibilityIcon } from '@/components/Icons'
 
 
-import { OptimizedChip, StatusChip, CurrencyCell, DateCell } from './OptimizedCells'
 export default function ClienteTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -144,21 +143,6 @@ export default function ClienteTable({ onEdit }) {
                         }}
                         disableRowSelectionOnClick
                         sx={dataGridStyles}
-        // ⚡ Performance optimizations
-        columnBuffer={2}
-        columnThreshold={2}
-        disableColumnResize
-        disableColumnReorder
-        hideFooterSelectedRowCount
-        sx={{
-            ...dataGridStyles,
-            '& .MuiDataGrid-virtualScroller': {
-                overscrollBehaviorX: 'contain',
-            },
-            '& .MuiDataGrid-row': {
-                willChange: 'transform',
-            }
-        }}
                     />
                 )}
             </Box>

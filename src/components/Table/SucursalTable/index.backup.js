@@ -15,7 +15,6 @@ import SucursalFilters from './SucursalFilters'
 import { EditIcon, VisibilityIcon } from '@/components/Icons'
 
 
-import { OptimizedChip, StatusChip, CurrencyCell, DateCell } from './OptimizedCells'
 /**
  * Alternative implementation with custom checkbox column
  * This avoids the bug with checkboxSelection prop
@@ -222,21 +221,6 @@ export default function SucursalTable({ onEdit }) {
                         disableRowSelectionOnClick
                         getRowId={(row) => row.id}
                         sx={dataGridStyles}
-        // ⚡ Performance optimizations
-        columnBuffer={2}
-        columnThreshold={2}
-        disableColumnResize
-        disableColumnReorder
-        hideFooterSelectedRowCount
-        sx={{
-            ...dataGridStyles,
-            '& .MuiDataGrid-virtualScroller': {
-                overscrollBehaviorX: 'contain',
-            },
-            '& .MuiDataGrid-row': {
-                willChange: 'transform',
-            }
-        }}
                     />
                 )}
             </Box>

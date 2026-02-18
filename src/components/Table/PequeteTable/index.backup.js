@@ -18,7 +18,6 @@ import PaqueteEditModal from '@/components/Modal/PaqueteEditModal'
 import { EditIcon, VisibilityIcon } from '@/components/Icons'
 
 
-import { OptimizedChip, StatusChip, CurrencyCell, DateCell } from './OptimizedCells'
 export default function PaqueteTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -193,21 +192,6 @@ export default function PaqueteTable({ onEdit }) {
                         onPaginationModelChange={handlePaginationChange}
                         disableRowSelectionOnClick
                         sx={dataGridStyles}
-        // ⚡ Performance optimizations
-        columnBuffer={2}
-        columnThreshold={2}
-        disableColumnResize
-        disableColumnReorder
-        hideFooterSelectedRowCount
-        sx={{
-            ...dataGridStyles,
-            '& .MuiDataGrid-virtualScroller': {
-                overscrollBehaviorX: 'contain',
-            },
-            '& .MuiDataGrid-row': {
-                willChange: 'transform',
-            }
-        }}
                     />
                 )}
             </Box>

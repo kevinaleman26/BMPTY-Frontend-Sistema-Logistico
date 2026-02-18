@@ -1,15 +1,21 @@
 // src/components/Table/FacturaTable/index.js
 'use client'
 
+import NotaEntregaPDF from '@/components/PDF/FacturaPDF'
 import { useFacturas } from '@/hooks/useFacturas'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import Box from '@mui/material/Box'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
+import IconButton from '@mui/material/IconButton'
 import { DataGrid } from '@mui/x-data-grid'
+import { PDFDownloadLink } from '@react-pdf/renderer'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useCallback } from 'react'
 import FacturaFilters from './FacturaFilters'
-import { OptimizedChip, StatusChip, CurrencyCell, DateCell, FacturaActionButtons } from './OptimizedCells'
+import { EditIcon, DescriptionIcon } from '@/components/Icons'
+
+
 export default function FacturaTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -48,7 +54,9 @@ export default function FacturaTable({ onEdit }) {
             filterable: false,
             disableColumnMenu: true,
             valueGetter: (value, row) => row.sucursal?.name || '—',
-            renderCell: (params) => <OptimizedChip label={params.value} />
+            renderCell: (params) => (
+                <Chip label={params.value} color="primary" size="small" />
+            )
         },
         {
             field: 'metodo_pago',
@@ -59,7 +67,9 @@ export default function FacturaTable({ onEdit }) {
             filterable: false,
             disableColumnMenu: true,
             valueGetter: (value, row) => row.metodo_pago?.name || '—',
-            renderCell: (params) => <OptimizedChip label={params.value} />
+            renderCell: (params) => (
+                <Chip label={params.value} color="primary" size="small" />
+            )
         },
         {
             field: 'delivery_status',
@@ -70,10 +80,10 @@ export default function FacturaTable({ onEdit }) {
             filterable: false,
             disableColumnMenu: true,
             renderCell: (params) => (
-                <StatusChip
-                    value={params.value}
-                    trueLabel="Entregado"
-                    falseLabel="Pendiente"
+                <Chip
+                    label={params.value ? 'Entregado' : 'Pendiente'}
+                    color={params.value ? 'success' : 'error'}
+                    size="small"
                 />
             )
         },
@@ -86,10 +96,10 @@ export default function FacturaTable({ onEdit }) {
             filterable: false,
             disableColumnMenu: true,
             renderCell: (params) => (
-                <StatusChip
-                    value={params.value}
-                    trueLabel="Pagado"
-                    falseLabel="Pendiente"
+                <Chip
+                    label={params.value ? 'Pagado' : 'Pendiente'}
+                    color={params.value ? 'success' : 'error'}
+                    size="small"
                 />
             )
         },
@@ -101,7 +111,8 @@ export default function FacturaTable({ onEdit }) {
             sortable: false,
             filterable: false,
             disableColumnMenu: true,
-            renderCell: (params) => <CurrencyCell value={params.value} />
+            renderCell: ({ value }) =>
+                value != null ? `$${Number(value).toFixed(2)}` : '—'
         },
         {
             field: 'created_at',
@@ -111,7 +122,8 @@ export default function FacturaTable({ onEdit }) {
             sortable: false,
             filterable: false,
             disableColumnMenu: true,
-            renderCell: (params) => <DateCell value={params.value} />
+            renderCell: ({ value }) =>
+                value ? new Date(value).toLocaleString() : '—'
         },
         {
             field: 'accion',
@@ -120,9 +132,48 @@ export default function FacturaTable({ onEdit }) {
             sortable: false,
             filterable: false,
             disableColumnMenu: true,
-            renderCell: (params) => (
-                <FacturaActionButtons row={params.row} onEdit={onEdit} />
-            )
+            renderCell: (params) => {
+                const { id, sucursal, factura_detalle, subtotal, descuento, otros, impuestos, total, cliente } = params.row
+                const paquetes = factura_detalle.map(item => {
+                    const { proveedor_paquetes } = item;
+                    const respuesta = {
+                        ...proveedor_paquetes,
+                        id: item.id,
+                        tracking: item.paquete_id,
+                        precioLb: cliente.tarifa,
+                        total: (proveedor_paquetes.peso * cliente.tarifa)
+                    };
+                    return respuesta;
+                })
+                const datosFactura = {
+                    nombreCliente: cliente.full_name,
+                    ruc: sucursal.ruc,
+                    direccion: sucursal.address,
+                    sucursal: sucursal.name,
+                    logoUrl: '/logo.png',
+                    items: paquetes,
+                    subtotal,
+                    descuento,
+                    otros,
+                    itbms: impuestos,
+                    total
+                };
+                return (
+                    <>
+                        <IconButton onClick={() => onEdit(params.row)}>
+                            <EditIcon sx={{ color: '#fff' }} />
+                        </IconButton>
+                        <PDFDownloadLink
+                            document={<NotaEntregaPDF data={datosFactura} />}
+                            fileName={`BM${sucursal.id}-Factura${id}-${cliente.full_name}`}
+                        >
+                            <IconButton>
+                                <DescriptionIcon sx={{ color: '#fff' }} />
+                            </IconButton>
+                        </PDFDownloadLink>
+                    </>
+                )
+            }
         }
     ], [onEdit])
 
@@ -154,21 +205,6 @@ export default function FacturaTable({ onEdit }) {
                         }}
                         disableRowSelectionOnClick
                         sx={dataGridStyles}
-        // ⚡ Performance optimizations
-        columnBuffer={2}
-        columnThreshold={2}
-        disableColumnResize
-        disableColumnReorder
-        hideFooterSelectedRowCount
-        sx={{
-            ...dataGridStyles,
-            '& .MuiDataGrid-virtualScroller': {
-                overscrollBehaviorX: 'contain',
-            },
-            '& .MuiDataGrid-row': {
-                willChange: 'transform',
-            }
-        }}
                     />
                 )}
             </Box>
