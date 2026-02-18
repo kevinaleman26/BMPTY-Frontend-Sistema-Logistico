@@ -2,23 +2,22 @@
 
 import { usePaquetes } from '@/hooks/usePaquetes'
 import { supabase } from '@/lib/supabase'
-import {
-    Alert,
-    Box,
-    Button,
-    Checkbox,
-    CircularProgress,
-    IconButton,
-    InputAdornment,
-    Snackbar,
-    TextField,
-    Typography
-} from '@mui/material'
-import SearchIcon from '@mui/icons-material/Search'
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Checkbox from '@mui/material/Checkbox'
+import CircularProgress from '@mui/material/CircularProgress'
+import IconButton from '@mui/material/IconButton'
+import InputAdornment from '@mui/material/InputAdornment'
+import Snackbar from '@mui/material/Snackbar'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { SearchIcon } from '@/components/Icons'
+
 
 export default function PaqueteTableSelection({ formik }) {
     const router = useRouter()

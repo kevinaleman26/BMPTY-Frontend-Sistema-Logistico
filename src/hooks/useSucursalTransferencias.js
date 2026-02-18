@@ -25,8 +25,8 @@ export const useSucursalTransferencias = (sucursalId) => {
 
         console.log('🔍 useSucursalTransferencias: Fetching data for sucursalId:', sucursalId)
 
-        // Obtener transferencias ENVIADAS por esta sucursal
-        const { data: enviadasData, error: enviadasError } = await supabase
+        // ⚡ Ejecutar ambas queries en paralelo para mejor performance
+        const enviadasQuery = supabase
             .from('transferencia_sucursal')
             .select(`
                 id,
@@ -52,15 +52,7 @@ export const useSucursalTransferencias = (sucursalId) => {
             .eq('emisor_sucursal_id', sucursalId)
             .order('created_at', { ascending: false })
 
-        console.log('📤 Enviadas:', { count: enviadasData?.length || 0, data: enviadasData, error: enviadasError })
-
-        if (enviadasError) {
-            console.error('❌ Error fetching enviadas:', enviadasError)
-            throw enviadasError
-        }
-
-        // Obtener transferencias RECIBIDAS por esta sucursal
-        const { data: recibidasData, error: recibidasError } = await supabase
+        const recibidasQuery = supabase
             .from('transferencia_sucursal')
             .select(`
                 id,
@@ -86,7 +78,19 @@ export const useSucursalTransferencias = (sucursalId) => {
             .eq('receptor_sucursal_id', sucursalId)
             .order('created_at', { ascending: false })
 
+        // Ejecutar ambas queries simultáneamente
+        const [
+            { data: enviadasData, error: enviadasError },
+            { data: recibidasData, error: recibidasError }
+        ] = await Promise.all([enviadasQuery, recibidasQuery])
+
+        console.log('📤 Enviadas:', { count: enviadasData?.length || 0, data: enviadasData, error: enviadasError })
         console.log('📥 Recibidas:', { count: recibidasData?.length || 0, data: recibidasData, error: recibidasError })
+
+        if (enviadasError) {
+            console.error('❌ Error fetching enviadas:', enviadasError)
+            throw enviadasError
+        }
 
         if (recibidasError) {
             console.error('❌ Error fetching recibidas:', recibidasError)

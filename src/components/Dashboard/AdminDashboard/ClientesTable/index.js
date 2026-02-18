@@ -4,7 +4,10 @@ import { dataGridStyles } from '@/styles/dataGridStyles'
 
 
 import { supabase } from '@/lib/supabase'
-import { Box, Chip, CircularProgress, Typography } from '@mui/material'
+import Box from '@mui/material/Box'
+import Chip from '@mui/material/Chip'
+import CircularProgress from '@mui/material/CircularProgress'
+import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 

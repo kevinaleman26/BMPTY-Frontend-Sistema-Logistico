@@ -1,13 +1,13 @@
 // components/Dashboard/EnhancedDashboard/RecentActivityCard.js
 'use client'
 
-import { Box, Typography, Chip } from '@mui/material'
-import {
-  LocalShipping as ShippingIcon,
-  Receipt as ReceiptIcon,
-  PersonAdd as PersonAddIcon,
-  Inventory as InventoryIcon,
-} from '@mui/icons-material'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import Chip from '@mui/material/Chip'
+import ShippingIcon from '@mui/icons-material/LocalShipping'
+import ReceiptIcon from '@mui/icons-material/Receipt'
+import PersonAddIcon from '@mui/icons-material/PersonAdd'
+import InventoryIcon from '@mui/icons-material/Inventory'
 import { memo } from 'react'
 
 const RecentActivityCard = memo(function RecentActivityCard({ activities = [] }) {

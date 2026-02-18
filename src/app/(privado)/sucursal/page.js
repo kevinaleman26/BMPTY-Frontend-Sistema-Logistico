@@ -1,12 +1,24 @@
 'use client'
 
-import SucursalModal from '@/components/Modal/SucursalModal'
 import SucursalTable from '@/components/Table/SucursalTable'
-import AddIcon from '@mui/icons-material/Add'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
+import CircularProgress from '@mui/material/CircularProgress'
+import dynamic from 'next/dynamic'
 import { useState, useCallback } from 'react'
+import { AddIcon } from '@/components/Icons'
+
+
+// ⚡ Lazy load modal (143 líneas)
+const SucursalModal = dynamic(() => import('@/components/Modal/SucursalModal'), {
+    loading: () => (
+        <Box display="flex" justifyContent="center" alignItems="center" p={4}>
+            <CircularProgress size={24} />
+        </Box>
+    ),
+    ssr: false
+})
 
 export default function SucursalesPage() {
     const [open, setOpen] = useState(false)

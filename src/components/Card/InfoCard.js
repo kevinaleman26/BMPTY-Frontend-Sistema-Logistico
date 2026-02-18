@@ -1,6 +1,7 @@
 'use client'
 
-import { Box, Typography } from '@mui/material'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
 import { useState } from 'react'
 
 export default function InfoCard({ color = '#f4b223', label, value, icon: Icon, delay = 0 }) {

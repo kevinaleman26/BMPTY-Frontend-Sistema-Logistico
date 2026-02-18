@@ -6,16 +6,22 @@ import { useMetodoPago } from '@/hooks/useMetodoPago'
 import { useMutateTransferencia } from '@/hooks/useMutateTransferencia'
 import { useSession } from '@/hooks/useSession'
 import { useSucursal } from '@/hooks/useSucursal'
+import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
 import Dialog from '@mui/material/Dialog'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import Divider from '@mui/material/Divider'
 import MenuItem from '@mui/material/MenuItem'
+import Snackbar from '@mui/material/Snackbar'
+import Switch from '@mui/material/Switch'
 import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+import FormControlLabel from '@mui/material/FormControlLabel'
 import { useFormik } from 'formik'
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import * as Yup from 'yup'
 
 export default function TransferenciaModal({ open, onClose, transferencia }) {
@@ -23,14 +29,29 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
     const { session } = useSession()
     const { data: sucursales } = useSucursal()
     const { data: metodosPago } = useMetodoPago()
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+
+    // Prevenir cierre accidental del modal
+    const handleModalClose = useCallback((event, reason) => {
+        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+            return
+        }
+        onClose()
+    }, [onClose])
+
+    const handleSnackbarClose = useCallback(() => {
+        setSnackbar(prev => ({ ...prev, open: false }))
+    }, [])
 
     const formik = useFormik({
         initialValues: {
-            emisor_sucursal_id: transferencia?.emisor_sucursal?.id || '',
+            // Auto-seleccionar sucursal emisora para Admin/Operador
+            emisor_sucursal_id: transferencia?.emisor_sucursal?.id ||
+                (session?.role?.id !== 1 ? session?.sucursal?.id : ''),
             receptor_sucursal_id: transferencia?.receptor_sucursal?.id || '',
-            metodo_pago_id: transferencia?.metodo_pago?.id || '',
-            delivery_status: transferencia ? String(transferencia.delivery_status) : '',
-            payment_status: transferencia ? String(transferencia.payment_status) : '',
+            metodo_pago_id: transferencia?.metodo_pago?.id ?? 0,  // Ninguno por defecto
+            delivery_status: transferencia?.delivery_status ?? false,
+            payment_status: transferencia?.payment_status ?? false,
             paqueteList: transferencia?.solicitud_paquete || []
         },
         enableReinitialize: true,
@@ -42,14 +63,22 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
         }),
         onSubmit: async (values, { resetForm }) => {
             try {
-                const now = new Date().toISOString()
+                // Validar que hay paquetes seleccionados
+                if (!values.paqueteList || values.paqueteList.length === 0) {
+                    setSnackbar({ open: true, message: 'Debes seleccionar al menos un paquete', severity: 'warning' })
+                    return
+                }
+
+                // Validar que emisor y receptor sean diferentes
+                if (values.emisor_sucursal_id === values.receptor_sucursal_id) {
+                    setSnackbar({ open: true, message: 'La sucursal emisora y receptora deben ser diferentes', severity: 'error' })
+                    return
+                }
 
                 const payload = {
                     ...values,
-                    delivery_status: values.delivery_status === 'true',
-                    payment_status: values.payment_status === 'true',
-                    delivery_date: values.delivery_status === 'true' ? now : null,
-                    payment_date: values.payment_status === 'true' ? now : null
+                    delivery_status: Boolean(values.delivery_status),
+                    payment_status: Boolean(values.payment_status)
                 }
 
                 if (transferencia) {
@@ -62,64 +91,96 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                         id: transferencia.id,
                         ...payload
                     })
+                    setSnackbar({ open: true, message: 'Transferencia actualizada exitosamente', severity: 'success' })
                 } else {
-                    // When creating, add emisor operator
+                    // When creating, add emisor operator and set defaults
                     payload.operador_emisor_id = session?.id
+                    payload.delivery_status = false  // Siempre pendiente al crear
+                    payload.payment_status = false    // Siempre pendiente al crear
                     await createTransferencia.mutateAsync(payload)
+                    setSnackbar({ open: true, message: 'Transferencia creada exitosamente', severity: 'success' })
                 }
 
-                onClose()
                 resetForm()
+                onClose()
             } catch (error) {
                 console.error('Error al guardar transferencia:', error)
+                setSnackbar({
+                    open: true,
+                    message: error?.message || 'Error al guardar la transferencia',
+                    severity: 'error'
+                })
             }
         }
     })
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
-            <DialogTitle sx={{borderBottom:"1px solid",borderColor:"divider"}}>
-                {transferencia ? 'Editar Transferencia' : 'Crear Transferencia'}
-            </DialogTitle>
+        <>
+            <Dialog open={open} onClose={handleModalClose} fullWidth maxWidth="md" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
+                <DialogTitle sx={{borderBottom:"1px solid",borderColor:"divider"}}>
+                    {transferencia ? 'Editar Transferencia' : 'Crear Transferencia'}
+                </DialogTitle>
             <DialogContent sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <Box
                     component="form"
                     onSubmit={formik.handleSubmit}
                     sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, gap: 2 }}
                 >
-                    <TextField
-                        select
-                        label="Sucursal Emisora"
-                        name="emisor_sucursal_id"
-                        value={formik.values.emisor_sucursal_id}
-                        onChange={formik.handleChange}
-                        error={formik.touched.emisor_sucursal_id && Boolean(formik.errors.emisor_sucursal_id)}
-                        helperText={formik.touched.emisor_sucursal_id && formik.errors.emisor_sucursal_id}
-                        fullWidth
-                    >
-                        {sucursales?.map((s) => (
-                            <MenuItem key={s.id} value={s.id}>
-                                {s.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                    {/* Sucursal Emisora: Auto-asignada para Admin/Operador */}
+                    {session?.role?.id === 1 && !transferencia ? (
+                        <TextField
+                            select
+                            label="Sucursal Emisora"
+                            name="emisor_sucursal_id"
+                            value={formik.values.emisor_sucursal_id}
+                            onChange={formik.handleChange}
+                            error={formik.touched.emisor_sucursal_id && Boolean(formik.errors.emisor_sucursal_id)}
+                            helperText={formik.touched.emisor_sucursal_id && formik.errors.emisor_sucursal_id}
+                            fullWidth
+                        >
+                            {sucursales?.map((s) => (
+                                <MenuItem key={s.id} value={s.id}>
+                                    {s.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    ) : (
+                        <TextField
+                            label="Sucursal Emisora"
+                            value={sucursales?.find(s => s.id === formik.values.emisor_sucursal_id)?.name || session?.sucursal?.name || ''}
+                            disabled
+                            fullWidth
+                            helperText={transferencia ? "No se puede modificar" : "Sucursal asignada automáticamente"}
+                        />
+                    )}
 
-                    <TextField
-                        select
-                        label="Sucursal Receptora"
-                        name="receptor_sucursal_id"
-                        value={formik.values.receptor_sucursal_id}
-                        onChange={formik.handleChange}
-                        error={formik.touched.receptor_sucursal_id && Boolean(formik.errors.receptor_sucursal_id)}
-                        helperText={formik.touched.receptor_sucursal_id && formik.errors.receptor_sucursal_id}
-                        fullWidth
-                    >
-                        {sucursales?.map((s) => (
-                            <MenuItem key={s.id} value={s.id}>
-                                {s.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                    {/* Sucursal Receptora: Disabled en modo edición */}
+                    {transferencia ? (
+                        <TextField
+                            label="Sucursal Receptora"
+                            value={sucursales?.find(s => s.id === formik.values.receptor_sucursal_id)?.name || ''}
+                            disabled
+                            fullWidth
+                            helperText="No se puede modificar"
+                        />
+                    ) : (
+                        <TextField
+                            select
+                            label="Sucursal Receptora"
+                            name="receptor_sucursal_id"
+                            value={formik.values.receptor_sucursal_id}
+                            onChange={formik.handleChange}
+                            error={formik.touched.receptor_sucursal_id && Boolean(formik.errors.receptor_sucursal_id)}
+                            helperText={formik.touched.receptor_sucursal_id && formik.errors.receptor_sucursal_id}
+                            fullWidth
+                        >
+                            {sucursales?.filter(s => s.id !== formik.values.emisor_sucursal_id)?.map((s) => (
+                                <MenuItem key={s.id} value={s.id}>
+                                    {s.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    )}
 
                     {/* Show debt card when receptor sucursal is selected */}
                     {formik.values.receptor_sucursal_id && (
@@ -129,50 +190,51 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                         />
                     )}
 
-                    <TextField
-                        select
-                        label="Método de Pago"
-                        name="metodo_pago_id"
-                        value={formik.values.metodo_pago_id}
-                        onChange={formik.handleChange}
-                        error={formik.touched.metodo_pago_id && Boolean(formik.errors.metodo_pago_id)}
-                        helperText={formik.touched.metodo_pago_id && formik.errors.metodo_pago_id}
-                        fullWidth
-                    >
-                        {metodosPago?.map((m) => (
-                            <MenuItem key={m.id} value={m.id}>
-                                {m.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                    {/* Campos solo visibles en modo edición */}
+                    {transferencia && (
+                        <>
+                            <TextField
+                                select
+                                label="Método de Pago"
+                                name="metodo_pago_id"
+                                value={formik.values.metodo_pago_id}
+                                onChange={formik.handleChange}
+                                error={formik.touched.metodo_pago_id && Boolean(formik.errors.metodo_pago_id)}
+                                helperText={formik.touched.metodo_pago_id && formik.errors.metodo_pago_id}
+                                fullWidth
+                            >
+                                {metodosPago?.map((m) => (
+                                    <MenuItem key={m.id} value={m.id}>
+                                        {m.name}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
 
-                    <TextField
-                        select
-                        label="Estado de Entrega"
-                        name="delivery_status"
-                        value={formik.values.delivery_status}
-                        onChange={formik.handleChange}
-                        error={formik.touched.delivery_status && Boolean(formik.errors.delivery_status)}
-                        helperText={formik.touched.delivery_status && formik.errors.delivery_status}
-                        fullWidth
-                    >
-                        <MenuItem value="false">Pendiente</MenuItem>
-                        <MenuItem value="true">Entregado</MenuItem>
-                    </TextField>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        name="delivery_status"
+                                        checked={Boolean(formik.values.delivery_status)}
+                                        onChange={(e) => formik.setFieldValue('delivery_status', e.target.checked)}
+                                        color="primary"
+                                    />
+                                }
+                                label="Estado de Entrega (Recibida)"
+                            />
 
-                    <TextField
-                        select
-                        label="Estado de Pago"
-                        name="payment_status"
-                        value={formik.values.payment_status}
-                        onChange={formik.handleChange}
-                        error={formik.touched.payment_status && Boolean(formik.errors.payment_status)}
-                        helperText={formik.touched.payment_status && formik.errors.payment_status}
-                        fullWidth
-                    >
-                        <MenuItem value="false">Pendiente</MenuItem>
-                        <MenuItem value="true">Pagado</MenuItem>
-                    </TextField>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        name="payment_status"
+                                        checked={Boolean(formik.values.payment_status)}
+                                        onChange={(e) => formik.setFieldValue('payment_status', e.target.checked)}
+                                        color="primary"
+                                    />
+                                }
+                                label="Estado de Pago (Pagada)"
+                            />
+                        </>
+                    )}
 
                     <Divider />
                     <PaqueteTableSelection formik={formik} />
@@ -191,5 +253,23 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                 </Box>
             </DialogContent>
         </Dialog>
+
+        {/* Snackbar para notificaciones */}
+        <Snackbar
+            open={snackbar.open}
+            autoHideDuration={6000}
+            onClose={handleSnackbarClose}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+            <Alert
+                onClose={handleSnackbarClose}
+                severity={snackbar.severity}
+                variant="filled"
+                sx={{ width: '100%' }}
+            >
+                {snackbar.message}
+            </Alert>
+        </Snackbar>
+    </>
     )
 }

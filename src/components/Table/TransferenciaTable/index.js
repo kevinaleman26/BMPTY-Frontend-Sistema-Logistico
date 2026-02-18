@@ -1,16 +1,30 @@
 'use client'
 
 import { useTransferencias } from '@/hooks/useTransferencias'
+import { useSession } from '@/hooks/useSession'
 import { dataGridStyles } from '@/styles/dataGridStyles'
-import EditIcon from '@mui/icons-material/Edit'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import IconButton from '@mui/material/IconButton'
+import Tooltip from '@mui/material/Tooltip'
 import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useState } from 'react'
 import TransferenciaFilters from './TransferenciaFilters'
+import dynamic from 'next/dynamic'
+import { EditIcon, DescriptionIcon } from '@/components/Icons'
+
+
+// ⚡ Dynamic imports para reducir bundle inicial
+// PDF y QRCode se cargarán solo cuando se necesiten
+const PDFDownloadLink = dynamic(
+  () => import('@react-pdf/renderer').then(mod => ({ default: mod.PDFDownloadLink })),
+  { ssr: false }
+)
+const TransferenciaPDF = dynamic(() => import('@/components/PDF/TransferenciaPDF'), {
+  ssr: false
+})
 
 // Hoist helper function outside component
 const formatDate = (dateString) => {
@@ -27,8 +41,34 @@ const formatDate = (dateString) => {
 export default function TransferenciaTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const { session } = useSession()
+    const [qrCodes, setQrCodes] = useState({})
 
     const { data, count, isLoading, page, limit } = useTransferencias()
+
+    // ⚡ Generate QR code with dynamic import to reduce bundle
+    const generateQRCode = useCallback(async (transferId) => {
+        if (qrCodes[transferId]) return qrCodes[transferId]
+
+        try {
+            // Lazy load QRCode library only when generating QR
+            const QRCode = await import('qrcode')
+            const trackingUrl = `${window.location.origin}/tracking/transferencia/${transferId}`
+            const qrDataUrl = await QRCode.default.toDataURL(trackingUrl, {
+                width: 300,
+                margin: 2,
+                color: {
+                    dark: '#1256c4',
+                    light: '#ffffff'
+                }
+            })
+            setQrCodes(prev => ({ ...prev, [transferId]: qrDataUrl }))
+            return qrDataUrl
+        } catch (error) {
+            console.error('Error generating QR code:', error)
+            return null
+        }
+    }, [qrCodes])
 
     const handlePageChange = useCallback((newPage) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -72,6 +112,23 @@ export default function TransferenciaTable({ onEdit }) {
             )
         },
         {
+            field: 'total',
+            headerName: 'Monto Total',
+            width: 130,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
+            renderCell: (params) => (
+                <Box sx={{
+                    fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace',
+                    fontWeight: 600,
+                    color: '#f4b223'
+                }}>
+                    ${Number(params.value || 0).toFixed(2)}
+                </Box>
+            )
+        },
+        {
             field: 'metodo_pago',
             headerName: 'Método de Pago',
             flex: 1,
@@ -79,9 +136,13 @@ export default function TransferenciaTable({ onEdit }) {
             sortable: false,
             filterable: false,
             disableColumnMenu: true,
-            valueGetter: (value, row) => row.metodo_pago?.name || '—',
+            valueGetter: (value, row) => row.metodo_pago?.name || 'Pendiente',
             renderCell: (params) => (
-                <Chip label={params.value} color="primary" size="small" />
+                <Chip
+                    label={params.value}
+                    color={params.value === 'Pendiente' ? 'default' : 'primary'}
+                    size="small"
+                />
             )
         },
         {
@@ -93,8 +154,8 @@ export default function TransferenciaTable({ onEdit }) {
             disableColumnMenu: true,
             renderCell: (params) => (
                 <Chip
-                    label={params.value ? 'Entregado' : 'Pendiente'}
-                    color={params.value ? 'success' : 'error'}
+                    label={params.value ? 'Recibida' : 'Pendiente'}
+                    color={params.value ? 'success' : 'warning'}
                     size="small"
                 />
             )
@@ -108,7 +169,7 @@ export default function TransferenciaTable({ onEdit }) {
             disableColumnMenu: true,
             renderCell: (params) => (
                 <Chip
-                    label={params.value ? 'Pagado' : 'Pendiente'}
+                    label={params.value ? 'Pagada' : 'Pendiente'}
                     color={params.value ? 'success' : 'error'}
                     size="small"
                 />
@@ -127,17 +188,58 @@ export default function TransferenciaTable({ onEdit }) {
         {
             field: 'accion',
             headerName: 'Acción',
-            width: 120,
+            width: 150,
             sortable: false,
             filterable: false,
             disableColumnMenu: true,
-            renderCell: (params) => (
-                <IconButton onClick={() => onEdit(params.row)}>
-                    <EditIcon sx={{ color: '#fff' }} />
-                </IconButton>
-            )
+            renderCell: (params) => {
+                // SuperAdmin y Admin pueden editar, Operador solo ve PDF
+                const canEdit = session?.role?.id === 1 || session?.role?.id === 2
+
+                return (
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                        {/* PDF Download Button */}
+                        <PDFDownloadLink
+                            document={
+                                <TransferenciaPDF
+                                    data={{
+                                        ...params.row,
+                                        paquetes: params.row.solicitud_paquete?.map(sp => ({
+                                            codigo: sp.paquete?.codigo || sp.paquete_id,
+                                            tipo: sp.paquete?.tipo || 'N/A',
+                                            peso: sp.paquete?.peso || 0,
+                                            precio: sp.paquete?.precio || 0
+                                        })) || []
+                                    }}
+                                    qrCodeDataUrl={qrCodes[params.row.id] || null}
+                                />
+                            }
+                            fileName={`Transferencia-${params.row.id}.pdf`}
+                            style={{ textDecoration: 'none' }}
+                            onClick={() => generateQRCode(params.row.id)}
+                        >
+                            {({ loading }) => (
+                                <Tooltip title="Descargar PDF">
+                                    <IconButton size="small" disabled={loading}>
+                                        <DescriptionIcon sx={{ color: '#f4b223' }} />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+                        </PDFDownloadLink>
+
+                        {/* Edit Button - Only for SuperAdmin and Admin */}
+                        {canEdit && (
+                            <Tooltip title="Editar">
+                                <IconButton onClick={() => onEdit(params.row)} size="small">
+                                    <EditIcon sx={{ color: '#fff' }} />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                    </Box>
+                )
+            }
         }
-    ], [onEdit])
+    ], [onEdit, session, qrCodes, generateQRCode])
 
 
     return (

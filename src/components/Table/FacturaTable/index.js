@@ -4,8 +4,6 @@
 import NotaEntregaPDF from '@/components/PDF/FacturaPDF'
 import { useFacturas } from '@/hooks/useFacturas'
 import { dataGridStyles } from '@/styles/dataGridStyles'
-import DescriptionIcon from '@mui/icons-material/Description'
-import EditIcon from '@mui/icons-material/Edit'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -15,6 +13,8 @@ import { PDFDownloadLink } from '@react-pdf/renderer'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useCallback } from 'react'
 import FacturaFilters from './FacturaFilters'
+import { EditIcon, DescriptionIcon } from '@/components/Icons'
+
 
 export default function FacturaTable({ onEdit }) {
     const router = useRouter()

@@ -3,7 +3,7 @@
 import { useMutatePaquete } from "@/hooks/useMutatePaquete";
 import { usePaqueteFacturado } from "@/hooks/usePaqueteFacturado";
 import { tokens } from "@/styles/tokens";
-import CloseIcon from "@mui/icons-material/Close";
+;
 import WarningIcon from "@mui/icons-material/Warning";
 import BlockIcon from "@mui/icons-material/Block";
 import Box from "@mui/material/Box";
@@ -19,6 +19,8 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { useFormik } from "formik";
 import { useState } from "react";
 import * as Yup from "yup";
+import { CloseIcon } from '@/components/Icons'
+
 
 const validationSchema = Yup.object({
   peso: Yup.number()

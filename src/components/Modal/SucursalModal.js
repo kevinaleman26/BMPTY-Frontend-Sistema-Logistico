@@ -24,6 +24,7 @@ export default function SucursalModal({ open, onClose, sucursal }) {
     const formik = useFormik({
         initialValues: {
             name: sucursal?.name || '',
+            codigo: sucursal?.codigo || '',
             address: sucursal?.address || '',
             tasa: sucursal?.tasa || '',
             status: sucursal?.status ?? true
@@ -69,6 +70,20 @@ export default function SucursalModal({ open, onClose, sucursal }) {
                             value={formik.values.name}
                             onChange={formik.handleChange}
                             fullWidth
+                        />
+                        <TextField
+                            label="Código"
+                            name="codigo"
+                            value={formik.values.codigo}
+                            onChange={(e) => {
+                                // Convert to uppercase and limit to 10 characters
+                                const value = e.target.value.toUpperCase().slice(0, 10)
+                                formik.setFieldValue('codigo', value)
+                            }}
+                            fullWidth
+                            placeholder="PAN, COL, DAV (3-4 letras)"
+                            helperText="Código único de 3-4 letras mayúsculas. Ej: PAN, COL, DAV"
+                            inputProps={{ maxLength: 10 }}
                         />
                         <TextField
                             label="Dirección"

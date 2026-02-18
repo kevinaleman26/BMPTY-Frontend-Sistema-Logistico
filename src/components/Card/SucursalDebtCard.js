@@ -2,13 +2,17 @@
 'use client'
 
 import { useDeudaSucursales } from '@/hooks/useDeudaSucursales'
-import { Alert, Box, Card, CardContent, CircularProgress, Divider, Typography } from '@mui/material'
-import {
-    AccountBalance as AccountBalanceIcon,
-    LocalShipping as LocalShippingIcon,
-    Inventory as InventoryIcon,
-    TrendingUp as TrendingUpIcon
-} from '@mui/icons-material'
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import CircularProgress from '@mui/material/CircularProgress'
+import Divider from '@mui/material/Divider'
+import Typography from '@mui/material/Typography'
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance'
+import LocalShippingIcon from '@mui/icons-material/LocalShipping'
+import InventoryIcon from '@mui/icons-material/Inventory'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 
 /**
  * Component to display debt information for a specific sucursal

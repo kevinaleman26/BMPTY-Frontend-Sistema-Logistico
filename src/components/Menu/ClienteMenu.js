@@ -1,5 +1,5 @@
 import ListItemLink from '@/components/List/Item/ListItemLink'
-import { List } from '@mui/material'
+import List from '@mui/material/List'
 
 const ClienteMenu = () => {
   return (

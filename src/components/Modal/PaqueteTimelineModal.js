@@ -2,7 +2,6 @@
 
 import PaqueteTimeline from '@/components/Timeline/PaqueteTimeline'
 import { tokens } from '@/styles/tokens'
-import CloseIcon from '@mui/icons-material/Close'
 import TimelineIcon from '@mui/icons-material/Timeline'
 import Box from '@mui/material/Box'
 import Dialog from '@mui/material/Dialog'
@@ -10,6 +9,8 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
+import { CloseIcon } from '@/components/Icons'
+
 
 /**
  * Modal para mostrar la cronología completa de un paquete

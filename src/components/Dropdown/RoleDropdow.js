@@ -1,7 +1,8 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { MenuItem, TextField } from '@mui/material'
+import MenuItem from '@mui/material/MenuItem'
+import TextField from '@mui/material/TextField'
 import { useEffect, useState } from 'react'
 
 export default function RoleDropdow({ value, onChange, disabled, filter }) {

@@ -3,7 +3,6 @@
 
 import { useOperadores } from '@/hooks/useOperadores'
 import { dataGridStyles } from '@/styles/dataGridStyles'
-import EditIcon from '@mui/icons-material/Edit'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -12,6 +11,8 @@ import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useCallback } from 'react'
 import OperadorFilters from './OperadorFilters'
+import { EditIcon } from '@/components/Icons'
+
 
 export default function OperadorTable({ onEdit }) {
     const router = useRouter()

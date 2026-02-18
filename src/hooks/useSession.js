@@ -1,82 +1,92 @@
-'use client'
-
 import { supabase } from '@/lib/supabase'
-import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
 const getClientInfo = async (id) => {
-    let { data: cliente, error } = await supabase
+    const { data: cliente, error } = await supabase
         .from('cliente')
         .select("*")
         .eq('id', id)
         .single()
 
-    if (error) return null;
+    if (error) return null
 
-    cliente['role'] = {
-        id: 4,
-        name: 'Cliente'
+    return {
+        ...cliente,
+        role: {
+            id: 4,
+            name: 'Cliente'
+        }
     }
-
-    return cliente;
 }
 
 const getOperadorInfo = async (id) => {
-    let { data: cliente, error } = await supabase
+    const { data: operador, error } = await supabase
         .from('operador')
         .select("*, sucursal(id, name), role(id, name)")
         .eq('id', id)
         .single()
 
-    if (error) return null;
+    if (error) return null
 
-    return cliente;
+    return operador
 }
 
+// ⚡ Función para obtener la sesión completa con datos de usuario
+const fetchSession = async () => {
+    const { data } = await supabase.auth.getSession()
+
+    if (!data?.session) {
+        return null
+    }
+
+    const userId = data.session.user.id
+
+    // Hacer ambas consultas en paralelo
+    const [clienteResult, operadorResult] = await Promise.allSettled([
+        getClientInfo(userId),
+        getOperadorInfo(userId)
+    ])
+
+    // Retornar el resultado exitoso
+    if (clienteResult.status === 'fulfilled' && clienteResult.value) {
+        return clienteResult.value
+    }
+
+    if (operadorResult.status === 'fulfilled' && operadorResult.value) {
+        return operadorResult.value
+    }
+
+    return null
+}
+
+// ⚡ Hook optimizado con React Query para deduplicación automática
 export function useSession() {
-    const [session, setSession] = useState(null)
-    const [loading, setLoading] = useState(true)
+    const queryClient = useQueryClient()
 
+    // Query principal de sesión
+    const { data: session, isLoading: loading } = useQuery({
+        queryKey: ['session'],
+        queryFn: fetchSession,
+        staleTime: 5 * 60 * 1000, // Session es estable por 5 minutos
+        cacheTime: 10 * 60 * 1000, // Mantener en cache 10 minutos
+        refetchOnWindowFocus: false, // No refetch al cambiar de tab
+        retry: 1, // Solo 1 retry
+    })
+
+    // ⚡ Listener de cambios de auth (invalida cache cuando cambia)
     useEffect(() => {
-
-        const actionSession = async (session) => {
-
-            if (!session) {
-                setLoading(false)
-                return
+        const { data: listener } = supabase.auth.onAuthStateChange(async (event) => {
+            if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+                // Invalidar y refetch la sesión
+                await queryClient.invalidateQueries({ queryKey: ['session'] })
             }
-
-            const { user } = session
-            const id = user.id
-
-            // Optimización: Hacer ambas consultas en paralelo en lugar de waterfall
-            const [clienteResult, operadorResult] = await Promise.allSettled([
-                getClientInfo(id),
-                getOperadorInfo(id)
-            ])
-
-            // Usar el resultado que sea exitoso
-            if (clienteResult.status === 'fulfilled' && clienteResult.value) {
-                setSession(clienteResult.value)
-            } else if (operadorResult.status === 'fulfilled' && operadorResult.value) {
-                setSession(operadorResult.value)
-            }
-
-            setLoading(false)
-        }
-
-        const getSession = async () => {
-            const { data } = await supabase.auth.getSession()
-            await actionSession(data?.session)
-        }
-
-        getSession()
-
-        const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            await actionSession(session)
         })
 
-        return () => listener.subscription.unsubscribe()
-    }, [])
+        return () => {
+            listener.subscription.unsubscribe()
+        }
+    }, [queryClient])
 
-    return { session, loading }
+    return { session: session ?? null, loading }
 }

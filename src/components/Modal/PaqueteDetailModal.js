@@ -1,7 +1,6 @@
 'use client'
 
 import { tokens } from '@/styles/tokens'
-import CloseIcon from '@mui/icons-material/Close'
 import LocalShippingIcon from '@mui/icons-material/LocalShipping'
 import StraightenIcon from '@mui/icons-material/Straighten'
 import ScaleIcon from '@mui/icons-material/Scale'
@@ -16,6 +15,8 @@ import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import Divider from '@mui/material/Divider'
 import PaqueteTimeline from '@/components/Timeline/PaqueteTimeline'
+import { CloseIcon } from '@/components/Icons'
+
 
 /**
  * Modal de detalle del paquete

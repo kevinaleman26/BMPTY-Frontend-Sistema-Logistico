@@ -2,22 +2,18 @@
 'use client'
 
 import { useDeudaSucursales } from '@/hooks/useDeudaSucursales'
-import {
-    Box,
-    Card,
-    CardContent,
-    Chip,
-    CircularProgress,
-    Grid,
-    Typography
-} from '@mui/material'
+import Box from '@mui/material/Box'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import Chip from '@mui/material/Chip'
+import CircularProgress from '@mui/material/CircularProgress'
+import Grid from '@mui/material/Grid'
+import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
-import {
-    TrendingUp as TrendingUpIcon,
-    AccountBalance as AccountBalanceIcon,
-    LocalShipping as LocalShippingIcon,
-    Inventory as InventoryIcon
-} from '@mui/icons-material'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance'
+import LocalShippingIcon from '@mui/icons-material/LocalShipping'
+import InventoryIcon from '@mui/icons-material/Inventory'
 
 /**
  * Stat card component for displaying key metrics

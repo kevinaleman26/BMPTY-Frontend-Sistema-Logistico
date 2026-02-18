@@ -58,7 +58,7 @@ export const usePaquetes = () => {
         const paqueteCodigos = Array.from(new Set((spRows ?? []).map(r => r.paquete_id)))
         if (paqueteCodigos.length === 0) return { data: [], count: 0 }
 
-        // 3a) COUNT exacto en proveedor_paquetes sobre el subconjunto de códigos + filtros finales
+        // 3) Ejecutar queries en paralelo (count, rows, facturados)
         let countQuery = supabase
             .from('proveedor_paquetes')
             .select('id', { count: 'exact', head: true })
@@ -67,10 +67,6 @@ export const usePaquetes = () => {
         if (tipo) countQuery = countQuery.ilike('tipo', `%${tipo}%`)
         if (codigo) countQuery = countQuery.ilike('codigo', `%${codigo}%`)
 
-        const { count, error: countError } = await countQuery
-        if (countError) throw countError
-
-        // 3b) PAGE de filas en proveedor_paquetes (paginación real en el subconjunto)
         let rowsQuery = supabase
             .from('proveedor_paquetes')
             .select('*')
@@ -80,17 +76,23 @@ export const usePaquetes = () => {
         if (codigo) rowsQuery = rowsQuery.ilike('codigo', `%${codigo}%`)
 
         rowsQuery = rowsQuery
-            .order('id', { ascending: false })       // orden estable
-            .range(offset, offset + limit - 1)       // paginación real
+            .order('id', { ascending: false })
+            .range(offset, offset + limit - 1)
 
-        const { data: rows, error: rowsError } = await rowsQuery
-        if (rowsError) throw rowsError
-
-        // Obtener códigos de paquetes facturados para marcarlos
-        const { data: facturadosData } = await supabase
+        let facturadosQuery = supabase
             .from('factura_detalle')
             .select('paquete_id')
             .in('paquete_id', paqueteCodigos)
+
+        // ⚡ Ejecutar las 3 queries en paralelo para reducir tiempo de carga
+        const [
+            { count, error: countError },
+            { data: rows, error: rowsError },
+            { data: facturadosData }
+        ] = await Promise.all([countQuery, rowsQuery, facturadosQuery])
+
+        if (countError) throw countError
+        if (rowsError) throw rowsError
 
         const codigosFacturados = new Set(
             (facturadosData ?? []).map(item => item.paquete_id)

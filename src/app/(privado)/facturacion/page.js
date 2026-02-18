@@ -1,14 +1,26 @@
 // app/(privado)/facturacion/page.js
 'use client'
 
-import FacturaModal from '@/components/Modal/FacturaModal'
 import FacturaTable from '@/components/Table/FacturaTable'
-import AddIcon from '@mui/icons-material/Add'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
+import CircularProgress from '@mui/material/CircularProgress'
+import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useCallback } from 'react'
+import { AddIcon } from '@/components/Icons'
+
+
+// ⚡ Lazy load modal pesado (359 líneas)
+const FacturaModal = dynamic(() => import('@/components/Modal/FacturaModal'), {
+    loading: () => (
+        <Box display="flex" justifyContent="center" alignItems="center" p={4}>
+            <CircularProgress size={24} />
+        </Box>
+    ),
+    ssr: false
+})
 
 export default function FacturacionPage() {
     const [open, setOpen] = useState(false)

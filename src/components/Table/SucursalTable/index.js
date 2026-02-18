@@ -3,8 +3,6 @@
 import { useSucursales } from '@/hooks/useSucursales'
 import SucursalDetailModal from '@/components/Modal/SucursalDetailModal'
 import { dataGridStyles } from '@/styles/dataGridStyles'
-import EditIcon from '@mui/icons-material/Edit'
-import VisibilityIcon from '@mui/icons-material/Visibility'
 import Box from '@mui/material/Box'
 import Checkbox from '@mui/material/Checkbox'
 import Chip from '@mui/material/Chip'
@@ -14,6 +12,8 @@ import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useCallback, useState } from 'react'
 import SucursalFilters from './SucursalFilters'
+import { EditIcon, VisibilityIcon } from '@/components/Icons'
+
 
 /**
  * Alternative implementation with custom checkbox column
@@ -99,6 +99,23 @@ export default function SucursalTable({ onEdit }) {
             headerName: 'ID',
             width: 80,
             type: 'number'
+        },
+        {
+            field: 'codigo',
+            headerName: 'Código',
+            width: 100,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
+            renderCell: (params) => (
+                <Box sx={{
+                    fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace',
+                    fontWeight: 600,
+                    color: '#f4b223'
+                }}>
+                    {params.value || '-'}
+                </Box>
+            )
         },
         {
             field: 'name',

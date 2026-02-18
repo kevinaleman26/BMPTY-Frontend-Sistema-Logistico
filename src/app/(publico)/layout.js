@@ -1,6 +1,11 @@
 "use client";
 
-import { AppBar, Box, Button, Container, Toolbar, alpha } from "@mui/material";
+import AppBar from '@mui/material/AppBar'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Container from '@mui/material/Container'
+import Toolbar from '@mui/material/Toolbar'
+import { alpha } from '@mui/system';
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";

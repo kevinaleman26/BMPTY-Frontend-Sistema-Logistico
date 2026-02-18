@@ -1,7 +1,9 @@
 "use client"
 
 import ClientRegisterForm from "@/components/Form/ClientRegisterForm"
-import { Box, Typography, alpha } from "@mui/material"
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import { alpha } from '@mui/system'
 import { use } from "react"
 
 export default function RegistroPage({ searchParams }) {

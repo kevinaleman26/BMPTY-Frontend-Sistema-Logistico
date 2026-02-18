@@ -3,7 +3,6 @@
 import { useSucursalPackages } from '@/hooks/useSucursalPackages'
 import { useSucursalTransferencias } from '@/hooks/useSucursalTransferencias'
 import { tokens } from '@/styles/tokens'
-import CloseIcon from '@mui/icons-material/Close'
 import PaymentIcon from '@mui/icons-material/Payment'
 import MoneyOffIcon from '@mui/icons-material/MoneyOff'
 import StoreIcon from '@mui/icons-material/Store'
@@ -26,6 +25,8 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { DataGrid } from '@mui/x-data-grid'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import { useMemo } from 'react'
+import { CloseIcon } from '@/components/Icons'
+
 
 /**
  * Modal de detalle de la sucursal

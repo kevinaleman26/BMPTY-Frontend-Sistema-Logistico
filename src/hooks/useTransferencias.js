@@ -33,57 +33,95 @@ export const useTransferencias = () => {
 
         let query;
         if (session.role.id !== 1) {
+            // Admin/Operador: Ver transferencias emitidas O recibidas por su sucursal
             query = supabase
                 .from('transferencia_sucursal')
                 .select(`
                 id,
+                total,
                 delivery_status,
                 payment_status,
                 delivery_date,
                 payment_date,
                 created_at,
+                received_at,
+                operador_emisor:operador!transferencia_sucursal_operador_emisor_id_fkey (
+                    id,
+                    full_name
+                ),
+                operador_receptor:operador!transferencia_sucursal_operador_receptor_id_fkey (
+                    id,
+                    full_name
+                ),
                 metodo_pago (
                     id,
                     name
                 ),
                 emisor_sucursal: sucursal!transferencia_sucursal_emisor_sucursal_id_fkey (
                     id,
-                    name
+                    name,
+                    codigo
                 ),
                 receptor_sucursal: sucursal!transferencia_sucursal_receptor_sucursal_id_fkey (
                     id,
-                    name
+                    name,
+                    codigo
                 ),
                 solicitud_paquete:solicitud_paquete!solicitud_paquete_transferencia_id_fkey (
-                    paquete_id
+                    paquete_id,
+                    paquete:proveedor_paquetes!solicitud_paquete_paquete_id_fkey (
+                        codigo,
+                        peso,
+                        precio,
+                        tipo
+                    )
                 )
             `, { count: 'exact' })
                 .range(offset, offset + limit - 1)
-                .eq("emisor_sucursal_id", session.sucursal.id)
+                .or(`emisor_sucursal_id.eq.${session.sucursal.id},receptor_sucursal_id.eq.${session.sucursal.id}`)
         } else {
+            // SuperAdmin: Ver todas las transferencias
             query = supabase
                 .from('transferencia_sucursal')
                 .select(`
                 id,
+                total,
                 delivery_status,
                 payment_status,
                 delivery_date,
                 payment_date,
                 created_at,
+                received_at,
+                operador_emisor:operador!transferencia_sucursal_operador_emisor_id_fkey (
+                    id,
+                    full_name
+                ),
+                operador_receptor:operador!transferencia_sucursal_operador_receptor_id_fkey (
+                    id,
+                    full_name
+                ),
                 metodo_pago (
                     id,
                     name
                 ),
                 emisor_sucursal: sucursal!transferencia_sucursal_emisor_sucursal_id_fkey (
                     id,
-                    name
+                    name,
+                    codigo
                 ),
                 receptor_sucursal: sucursal!transferencia_sucursal_receptor_sucursal_id_fkey (
                     id,
-                    name
+                    name,
+                    codigo
                 ),
                 solicitud_paquete:solicitud_paquete!solicitud_paquete_transferencia_id_fkey (
-                    paquete_id
+                    paquete_id,
+                    paquete:proveedor_paquetes!solicitud_paquete_paquete_id_fkey (
+                        codigo,
+                        peso,
+                        precio,
+                        tipo
+                    )
                 )
             `, { count: 'exact' })
                 .range(offset, offset + limit - 1)

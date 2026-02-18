@@ -2,8 +2,6 @@
 
 import { useClientes } from '@/hooks/useClientes'
 import { dataGridStyles } from '@/styles/dataGridStyles'
-import EditIcon from '@mui/icons-material/Edit'
-import VisibilityIcon from '@mui/icons-material/Visibility'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -14,6 +12,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useCallback, useState } from 'react'
 import ClienteFilters from './ClienteFilters'
 import ClienteDetailModal from '@/components/Modal/ClienteDetailModal'
+import { EditIcon, VisibilityIcon } from '@/components/Icons'
+
 
 export default function ClienteTable({ onEdit }) {
     const router = useRouter()
@@ -57,6 +57,23 @@ export default function ClienteTable({ onEdit }) {
             valueGetter: (value, row) => row.sucursal?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
+            )
+        },
+        {
+            field: 'codigo',
+            headerName: 'Código',
+            width: 120,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
+            renderCell: (params) => (
+                <Box sx={{
+                    fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace',
+                    fontWeight: 600,
+                    color: '#f4b223'
+                }}>
+                    {params.value || '-'}
+                </Box>
             )
         },
         { field: 'full_name', headerName: 'Nombre', flex: 1 },

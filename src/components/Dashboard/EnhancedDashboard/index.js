@@ -1,15 +1,15 @@
 // components/Dashboard/EnhancedDashboard/index.js
 'use client'
 
-import { Box, Grid, Typography } from '@mui/material'
-import {
-  Inventory as InventoryIcon,
-  Receipt as ReceiptIcon,
-  LocalShipping as ShippingIcon,
-  TrendingUp as TrendingUpIcon,
-  People as PeopleIcon,
-  Business as BusinessIcon,
-} from '@mui/icons-material'
+import Box from '@mui/material/Box'
+import Grid from '@mui/material/Grid'
+import Typography from '@mui/material/Typography'
+import InventoryIcon from '@mui/icons-material/Inventory'
+import ReceiptIcon from '@mui/icons-material/Receipt'
+import ShippingIcon from '@mui/icons-material/LocalShipping'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import PeopleIcon from '@mui/icons-material/People'
+import BusinessIcon from '@mui/icons-material/Business'
 import { memo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'

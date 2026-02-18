@@ -2,7 +2,6 @@
 
 import { useClientePackages } from '@/hooks/useClientePackages'
 import { tokens } from '@/styles/tokens'
-import CloseIcon from '@mui/icons-material/Close'
 import PaymentIcon from '@mui/icons-material/Payment'
 import MoneyOffIcon from '@mui/icons-material/MoneyOff'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -24,6 +23,8 @@ import { DataGrid } from '@mui/x-data-grid'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import PaqueteTimelineModal from '@/components/Modal/PaqueteTimelineModal'
 import { useMemo, useState, useCallback } from 'react'
+import { CloseIcon } from '@/components/Icons'
+
 
 /**
  * Modal de detalle del cliente

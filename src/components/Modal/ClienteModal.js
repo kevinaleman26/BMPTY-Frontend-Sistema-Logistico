@@ -110,6 +110,23 @@ export default function ClienteModal({ open, onClose, cliente }) {
                         ))}
                     </TextField>
 
+                    {cliente && (
+                        <TextField
+                            label="Código de Cliente"
+                            value={cliente?.codigo || 'Generando...'}
+                            disabled
+                            fullWidth
+                            helperText="Código único generado automáticamente"
+                            InputProps={{
+                                sx: {
+                                    fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace',
+                                    fontWeight: 600,
+                                    color: '#f4b223'
+                                }
+                            }}
+                        />
+                    )}
+
                     <TextField
                         label="Nombre completo"
                         name="full_name"

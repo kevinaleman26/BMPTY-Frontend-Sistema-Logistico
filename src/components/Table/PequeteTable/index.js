@@ -12,11 +12,11 @@ import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useCallback, useState } from 'react'
 import PaqueteFilters from './PaqueteFilters'
-import VisibilityIcon from '@mui/icons-material/Visibility'
-import EditIcon from '@mui/icons-material/Edit'
 import ReceiptIcon from '@mui/icons-material/Receipt'
 import PaqueteDetailModal from '@/components/Modal/PaqueteDetailModal'
 import PaqueteEditModal from '@/components/Modal/PaqueteEditModal'
+import { EditIcon, VisibilityIcon } from '@/components/Icons'
+
 
 export default function PaqueteTable({ onEdit }) {
     const router = useRouter()
