@@ -19,15 +19,25 @@ export const useDeudaSucursales = () => {
     const queryKey = ['deuda-sucursales']
 
     const queryFn = async () => {
-        // Call Supabase RPC function
-        const { data, error } = await supabase.rpc('obtener_deudas_sucursales')
+        try {
+            // Validate supabase client
+            if (!supabase || typeof supabase.rpc !== 'function') {
+                throw new Error('Supabase client not initialized correctly')
+            }
 
-        if (error) {
-            console.error('Error fetching deudas:', error)
-            throw error
+            // Call Supabase RPC function
+            const { data, error } = await supabase.rpc('obtener_deudas_sucursales')
+
+            if (error) {
+                console.error('Error fetching deudas:', error)
+                throw error
+            }
+
+            return data || []
+        } catch (err) {
+            console.error('Error in useDeudaSucursales:', err)
+            throw err
         }
-
-        return data || []
     }
 
     const { data, isLoading, isError, error } = useQuery({
@@ -35,6 +45,7 @@ export const useDeudaSucursales = () => {
         queryFn,
         staleTime: 60000, // Cache for 1 minute
         refetchOnWindowFocus: true,
+        retry: 2,
     })
 
     // Calculate total general (sum of all debts)
