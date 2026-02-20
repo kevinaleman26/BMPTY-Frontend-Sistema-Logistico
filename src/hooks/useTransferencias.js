@@ -59,13 +59,11 @@ export const useTransferencias = () => {
                 ),
                 emisor_sucursal: sucursal!transferencia_sucursal_emisor_sucursal_id_fkey (
                     id,
-                    name,
-                    codigo
+                    name
                 ),
                 receptor_sucursal: sucursal!transferencia_sucursal_receptor_sucursal_id_fkey (
                     id,
-                    name,
-                    codigo
+                    name
                 ),
                 solicitud_paquete:solicitud_paquete!solicitud_paquete_transferencia_id_fkey (
                     paquete_id,
@@ -106,13 +104,11 @@ export const useTransferencias = () => {
                 ),
                 emisor_sucursal: sucursal!transferencia_sucursal_emisor_sucursal_id_fkey (
                     id,
-                    name,
-                    codigo
+                    name
                 ),
                 receptor_sucursal: sucursal!transferencia_sucursal_receptor_sucursal_id_fkey (
                     id,
-                    name,
-                    codigo
+                    name
                 ),
                 solicitud_paquete:solicitud_paquete!solicitud_paquete_transferencia_id_fkey (
                     paquete_id,

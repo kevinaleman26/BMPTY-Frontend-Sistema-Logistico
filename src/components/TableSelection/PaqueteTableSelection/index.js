@@ -1,6 +1,7 @@
 'use client'
 
 import { usePaquetes } from '@/hooks/usePaquetes'
+import { useSession } from '@/hooks/useSession'
 import { supabase } from '@/lib/supabase'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -22,7 +23,8 @@ import { SearchIcon } from '@/components/Icons'
 export default function PaqueteTableSelection({ formik }) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const { data, count, isLoading, page, limit } = usePaquetes()
+    const { session } = useSession()
+    const { data, count, isLoading, page, limit } = usePaquetes({ soloDisponibles: true })
 
     const [initDT, setInitDt] = useState(() =>
         Array.isArray(formik?.values?.paqueteList)
@@ -33,7 +35,6 @@ export default function PaqueteTableSelection({ formik }) {
     const [search, setSearch] = useState('')
     const [barcodeInput, setBarcodeInput] = useState('')
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
-    const [pendingPackage, setPendingPackage] = useState(null)
 
     // 🚀 Trae los paquetes por código (solo si hay initDT) — FUERA de useMemo
     const {
@@ -47,11 +48,7 @@ export default function PaqueteTableSelection({ formik }) {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('proveedor_paquetes')
-                .select(`
-                    *, 
-                    solicitud_paquete:solicitud_paquete(paquete_id)
-                `)
-                .is('solicitud_paquete.paquete_id', null)
+                .select('*')
                 .in('codigo', initDT)
             if (error) throw error
             return data ?? []
@@ -87,12 +84,10 @@ export default function PaqueteTableSelection({ formik }) {
 
     const handleSelectOne = useCallback((row) => {
         setSelectedRows((prev) => {
-            const isSelected = prev.some(r => (r.id ?? r.codigo) === (row.id ?? r.codigo))
+            const isSelected = prev.some(r => (r.id ?? r.codigo) === (row.id ?? row.codigo))
             if (isSelected) {
-                // Deseleccionar
                 return prev.filter(r => (r.id ?? r.codigo) !== (row.id ?? row.codigo))
             } else {
-                // Seleccionar
                 return [...prev, row]
             }
         })
@@ -114,32 +109,24 @@ export default function PaqueteTableSelection({ formik }) {
         return barcodeLast7 === packageLast7
     }, [])
 
-    // Buscar paquete por código de barras
+    // Buscar paquete por código de barras y agregarlo directamente si está disponible
     const searchPackageByBarcode = useCallback(async (barcode) => {
-        if (!barcode.trim()) {
-            showNotification('Por favor ingrese un código de barras', 'warning')
-            return
-        }
+        if (!barcode.trim()) return
 
         try {
-            // Buscar en todos los paquetes disponibles (no facturados)
-            const { data, error } = await supabase
+            const last7 = barcode.slice(-7)
+
+            const { data: candidates, error } = await supabase
                 .from('proveedor_paquetes')
-                .select(`
-                    *,
-                    solicitud_paquete:solicitud_paquete(paquete_id)
-                `)
-                .is('solicitud_paquete.paquete_id', null)
+                .select('*')
+                .ilike('codigo', `%${last7}`)
 
             if (error) throw error
 
-            // Buscar paquete cuyos últimos 7 caracteres coincidan
-            const matchingPackage = data?.find(pkg =>
-                validateLast7Chars(barcode, pkg.codigo)
-            )
+            const matchingPackage = candidates?.find(pkg => validateLast7Chars(barcode, pkg.codigo))
 
             if (!matchingPackage) {
-                showNotification('No se encontró un paquete con código coincidente', 'error')
+                showNotification('No se encontró un paquete con ese código', 'error')
                 return
             }
 
@@ -147,63 +134,68 @@ export default function PaqueteTableSelection({ formik }) {
             const alreadySelected = selectedRows.some(
                 r => (r.id ?? r.codigo) === (matchingPackage.id ?? matchingPackage.codigo)
             )
-
             if (alreadySelected) {
-                showNotification('Este paquete ya está seleccionado', 'warning')
+                showNotification(`Paquete ${matchingPackage.codigo} ya está en la lista`, 'warning')
+                setBarcodeInput('')
                 return
             }
 
-            // Mostrar confirmación
-            setPendingPackage(matchingPackage)
-            showNotification(
-                `Paquete encontrado: ${matchingPackage.codigo}. Presione Enter nuevamente para confirmar o Esc para cancelar`,
-                'info'
-            )
+            // Verificar disponibilidad: no facturado y no en transferencia activa
+            const [{ data: facturaCheck }, activasResult] = await Promise.all([
+                supabase
+                    .from('factura_detalle')
+                    .select('paquete_id')
+                    .eq('paquete_id', matchingPackage.codigo)
+                    .maybeSingle(),
+                supabase
+                    .from('transferencia_sucursal')
+                    .select('id')
+                    .eq('emisor_sucursal_id', session?.sucursal?.id)
+                    .eq('delivery_status', false)
+            ])
+
+            if (facturaCheck) {
+                showNotification('Este paquete ya fue facturado y no está disponible', 'error')
+                return
+            }
+
+            if (activasResult.data?.length > 0) {
+                const { data: transitCheck } = await supabase
+                    .from('solicitud_paquete')
+                    .select('paquete_id')
+                    .eq('paquete_id', matchingPackage.codigo)
+                    .in('transferencia_id', activasResult.data.map(t => t.id))
+                    .maybeSingle()
+
+                if (transitCheck) {
+                    showNotification('Este paquete ya está en una transferencia activa', 'error')
+                    return
+                }
+            }
+
+            // Agregar directamente sin confirmación
+            setSelectedRows(prev => [...prev, matchingPackage])
+            showNotification(`Paquete ${matchingPackage.codigo} agregado`, 'success')
+            setBarcodeInput('')
 
         } catch (error) {
             console.error('Error searching package:', error)
             showNotification('Error al buscar el paquete', 'error')
         }
-    }, [validateLast7Chars, showNotification, selectedRows])
+    }, [validateLast7Chars, showNotification, selectedRows, session])
 
-    // Confirmar adición del paquete
-    const confirmAddPackage = useCallback(() => {
-        if (pendingPackage) {
-            setSelectedRows(prev => [...prev, pendingPackage])
-            showNotification(`Paquete ${pendingPackage.codigo} agregado exitosamente`, 'success')
-            setPendingPackage(null)
-            setBarcodeInput('')
-        }
-    }, [pendingPackage, showNotification])
-
-    // Cancelar adición del paquete
-    const cancelAddPackage = useCallback(() => {
-        setPendingPackage(null)
-        setBarcodeInput('')
-        showNotification('Operación cancelada', 'info')
-    }, [showNotification])
-
-    // Manejar búsqueda manual con botón
+    // Manejar búsqueda con botón o Enter
     const handleManualSearch = useCallback(() => {
-        if (pendingPackage) {
-            confirmAddPackage()
-        } else {
-            searchPackageByBarcode(barcodeInput)
-        }
-    }, [barcodeInput, pendingPackage, searchPackageByBarcode, confirmAddPackage])
+        searchPackageByBarcode(barcodeInput)
+    }, [barcodeInput, searchPackageByBarcode])
 
     // Manejar evento de teclado en campo de código de barras
     const handleBarcodeKeyDown = useCallback((e) => {
         if (e.key === 'Enter') {
-            e.preventDefault() // Prevenir submit del formulario
-            handleManualSearch()
-        } else if (e.key === 'Escape') {
             e.preventDefault()
-            if (pendingPackage) {
-                cancelAddPackage()
-            }
+            handleManualSearch()
         }
-    }, [handleManualSearch, pendingPackage, cancelAddPackage])
+    }, [handleManualSearch])
 
     // Actualizar formik cuando cambia la selección
     useEffect(() => {
@@ -270,10 +262,7 @@ export default function PaqueteTableSelection({ formik }) {
                             onChange={(e) => setBarcodeInput(e.target.value)}
                             onKeyDown={handleBarcodeKeyDown}
                             placeholder="Escanee código de barras o escriba el código manualmente"
-                            helperText={pendingPackage
-                                ? '⚠️ Presione Enter o haga clic en buscar para confirmar (Esc para cancelar)'
-                                : 'Escanee con lector o escriba el código. Presione Enter o haga clic en buscar'
-                            }
+                            helperText="Escanee con lector o escriba el código y presione Enter"
                             InputProps={{
                                 endAdornment: (
                                     <InputAdornment position="end">
@@ -282,24 +271,14 @@ export default function PaqueteTableSelection({ formik }) {
                                             edge="end"
                                             disabled={!barcodeInput.trim()}
                                             sx={{
-                                                color: pendingPackage ? '#f4b223' : '#2196f3',
-                                                '&:hover': {
-                                                    backgroundColor: pendingPackage
-                                                        ? 'rgba(244, 178, 35, 0.1)'
-                                                        : 'rgba(33, 150, 243, 0.1)'
-                                                }
+                                                color: '#2196f3',
+                                                '&:hover': { backgroundColor: 'rgba(33, 150, 243, 0.1)' }
                                             }}
                                         >
                                             <SearchIcon />
                                         </IconButton>
                                     </InputAdornment>
                                 )
-                            }}
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    backgroundColor: pendingPackage ? 'rgba(244, 178, 35, 0.1)' : 'transparent',
-                                    borderColor: pendingPackage ? '#f4b223' : undefined
-                                }
                             }}
                             autoComplete="off"
                         />

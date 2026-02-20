@@ -2,22 +2,37 @@
 'use client'
 
 import { useFacturas } from '@/hooks/useFacturas'
+import { useMutateFactura } from '@/hooks/useMutateFactura'
+import { useSession } from '@/hooks/useSession'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Checkbox from '@mui/material/Checkbox'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import FacturaFilters from './FacturaFilters'
 import { OptimizedChip, StatusChip, CurrencyCell, DateCell, FacturaActionButtons } from './OptimizedCells'
+
 export default function FacturaTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const { session } = useSession()
     const { data, count, isLoading, page, limit } = useFacturas()
+    const { bulkUpdateFacturas } = useMutateFactura()
+    const [selectedRows, setSelectedRows] = useState([])
+
+    const rows = data?.data || []
+
+    // Only SuperAdmin (1) and Admin (2) can change payment status
+    const canChangePayment = session?.role?.id === 1 || session?.role?.id === 2
 
     const handlePageChange = useCallback((newPage) => {
         const params = new URLSearchParams(searchParams.toString())
         params.set('page', newPage + 1)
+        setSelectedRows([])
         router.push(`?${params.toString()}`)
     }, [searchParams, router])
 
@@ -25,16 +40,68 @@ export default function FacturaTable({ onEdit }) {
         const params = new URLSearchParams(searchParams.toString())
         params.set('limit', newLimit)
         params.set('page', 1)
+        setSelectedRows([])
         router.push(`?${params.toString()}`)
     }, [searchParams, router])
 
+    const handleSelectAll = useCallback((e) => {
+        if (e.target.checked) {
+            setSelectedRows(rows)
+        } else {
+            setSelectedRows([])
+        }
+    }, [rows])
+
+    const handleSelectOne = useCallback((row) => {
+        setSelectedRows(prev => {
+            const isSelected = prev.some(r => r.id === row.id)
+            if (isSelected) return prev.filter(r => r.id !== row.id)
+            return [...prev, row]
+        })
+    }, [])
+
+    const handleBulkUpdate = useCallback(async (changes) => {
+        const ids = selectedRows.map(r => r.id)
+        await bulkUpdateFacturas.mutateAsync({ ids, ...changes })
+        setSelectedRows([])
+    }, [selectedRows, bulkUpdateFacturas])
+
     const columns = useMemo(() => [
+        {
+            field: 'select',
+            headerName: '',
+            width: 50,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
+            renderHeader: () => (
+                <Checkbox
+                    checked={rows.length > 0 && selectedRows.length === rows.length}
+                    indeterminate={selectedRows.length > 0 && selectedRows.length < rows.length}
+                    onChange={handleSelectAll}
+                    sx={{ color: '#f4b223', '&.Mui-checked': { color: '#f4b223' }, '&.MuiCheckbox-indeterminate': { color: '#f4b223' } }}
+                />
+            ),
+            renderCell: (params) => {
+                const isSelected = selectedRows.some(r => r.id === params.row.id)
+                return (
+                    <Checkbox
+                        checked={isSelected}
+                        onChange={() => handleSelectOne(params.row)}
+                        sx={{ color: '#f4b223', '&.Mui-checked': { color: '#f4b223' } }}
+                    />
+                )
+            }
+        },
         { field: 'id', headerName: 'Número', width: 80 },
         {
             field: 'cliente',
             headerName: 'Cliente',
             flex: 1,
             minWidth: 150,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) =>
                 row.cliente?.full_name || row.cliente?.email || '—',
             renderCell: (params) => params.value
@@ -124,12 +191,89 @@ export default function FacturaTable({ onEdit }) {
                 <FacturaActionButtons row={params.row} onEdit={onEdit} />
             )
         }
-    ], [onEdit])
+    ], [rows, selectedRows, handleSelectAll, handleSelectOne, onEdit])
 
     return (
         <Box sx={{ width: '100%' }}>
             {/* Filtros */}
             <FacturaFilters />
+
+            {/* Barra de acciones masivas */}
+            {selectedRows.length > 0 && (
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    mb: 1,
+                    backgroundColor: '#111',
+                    border: '1px solid #f4b223',
+                    borderRadius: 1,
+                    flexWrap: 'wrap'
+                }}>
+                    <Chip
+                        label={`${selectedRows.length} seleccionada${selectedRows.length > 1 ? 's' : ''}`}
+                        size="small"
+                        sx={{ backgroundColor: '#f4b223', color: '#000', fontWeight: 700 }}
+                    />
+
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="success"
+                            onClick={() => handleBulkUpdate({ delivery_status: true })}
+                            disabled={bulkUpdateFacturas.isPending}
+                            sx={{ textTransform: 'none' }}
+                        >
+                            Marcar entregado
+                        </Button>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleBulkUpdate({ delivery_status: false })}
+                            disabled={bulkUpdateFacturas.isPending}
+                            sx={{ textTransform: 'none', borderColor: '#666', color: '#aaa' }}
+                        >
+                            Pendiente entrega
+                        </Button>
+
+                        {canChangePayment && (
+                            <>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="success"
+                                    onClick={() => handleBulkUpdate({ payment_status: true })}
+                                    disabled={bulkUpdateFacturas.isPending}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Marcar pagado
+                                </Button>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={() => handleBulkUpdate({ payment_status: false })}
+                                    disabled={bulkUpdateFacturas.isPending}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Pendiente pago
+                                </Button>
+                            </>
+                        )}
+                    </Box>
+
+                    <Button
+                        size="small"
+                        variant="text"
+                        onClick={() => setSelectedRows([])}
+                        sx={{ ml: 'auto', color: '#666', textTransform: 'none' }}
+                    >
+                        Limpiar selección
+                    </Button>
+                </Box>
+            )}
 
             {/* Tabla */}
             <Box sx={{ height: 500, width: '100%' }}>
@@ -139,7 +283,7 @@ export default function FacturaTable({ onEdit }) {
                     </Box>
                 ) : (
                     <DataGrid
-                        rows={data?.data || []}
+                        rows={rows}
                         columns={columns}
                         rowCount={count || 0}
                         paginationMode="server"
@@ -148,27 +292,28 @@ export default function FacturaTable({ onEdit }) {
                             page: Math.max(page - 1, 0),
                             pageSize: limit
                         }}
-                        onPaginationModelChange={({ page, pageSize }) => {
-                            handlePageChange(page)
-                            handlePageSizeChange(pageSize)
+                        onPaginationModelChange={({ page: newPage, pageSize: newPageSize }) => {
+                            if (newPageSize !== limit) {
+                                handlePageSizeChange(newPageSize)
+                            } else {
+                                handlePageChange(newPage)
+                            }
                         }}
                         disableRowSelectionOnClick
-                        sx={dataGridStyles}
-        // ⚡ Performance optimizations
-        columnBuffer={2}
-        columnThreshold={2}
-        disableColumnResize
-        disableColumnReorder
-        hideFooterSelectedRowCount
-        sx={{
-            ...dataGridStyles,
-            '& .MuiDataGrid-virtualScroller': {
-                overscrollBehaviorX: 'contain',
-            },
-            '& .MuiDataGrid-row': {
-                willChange: 'transform',
-            }
-        }}
+                        columnBuffer={2}
+                        columnThreshold={2}
+                        disableColumnResize
+                        disableColumnReorder
+                        hideFooterSelectedRowCount
+                        sx={{
+                            ...dataGridStyles,
+                            '& .MuiDataGrid-virtualScroller': {
+                                overscrollBehaviorX: 'contain',
+                            },
+                            '& .MuiDataGrid-row': {
+                                willChange: 'transform',
+                            }
+                        }}
                     />
                 )}
             </Box>

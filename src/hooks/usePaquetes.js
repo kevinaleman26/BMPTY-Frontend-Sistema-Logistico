@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 
-export const usePaquetes = () => {
+export const usePaquetes = ({ soloDisponibles = false } = {}) => {
     const searchParams = useSearchParams()
     const { session, loading } = useSession()
 
@@ -18,13 +18,12 @@ export const usePaquetes = () => {
 
     const offset = (page - 1) * limit
 
-    // clave incluye receptor para revalidar al cambiar de sucursal
-    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, receptor: session?.sucursal?.id }]
+    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, sucursal: session?.sucursal?.id, soloDisponibles }]
 
     const queryFn = async () => {
         if (!session?.sucursal?.id) return { data: [], count: 0 }
 
-        // 1) transferencia_sucursal -> IDs
+        // ─── PATH A: paquetes recibidos via transferencia ───────────────────────
         let tsQuery = supabase
             .from('transferencia_sucursal')
             .select('id')
@@ -32,33 +31,85 @@ export const usePaquetes = () => {
 
         if (factura_id) tsQuery = tsQuery.ilike('factura_id', `%${factura_id}%`)
 
-        const { data: tsRows, error: tsError } = await tsQuery
+        // ─── PATH B: paquetes registrados directamente en esta sucursal ─────────
+        // Paquetes con sucursal_origen_id = esta sucursal y sin ninguna solicitud_paquete
+        const directQuery = supabase
+            .from('proveedor_paquetes')
+            .select('codigo, solicitud_paquete:solicitud_paquete(paquete_id)')
+            .eq('sucursal_origen_id', session.sucursal.id)
+            .is('solicitud_paquete.paquete_id', null)
+
+        // Ejecutar ambas queries en paralelo
+        const [{ data: tsRows, error: tsError }, { data: directRaw }] = await Promise.all([
+            tsQuery,
+            directQuery,
+        ])
+
         if (tsError) throw tsError
 
+        // Códigos de paquetes registrados directamente
+        const codigosDirectos = (directRaw ?? []).map(r => r.codigo)
+
+        // Códigos de paquetes recibidos via transferencia
+        let codigosTransferidos = []
         const solicitudIds = (tsRows ?? []).map(r => r.id)
-        if (solicitudIds.length === 0) return { data: [], count: 0 }
 
-        // 2) solicitud_paquete -> paquete_id (limitamos con RANGE para acelerar)
-        //    Usamos una ventana dinámica que garantice suficientes candidatos para paginar.
-        //    Heurística: traer hasta (offset + limit*4) filas (capadas por un máximo duro).
-        const SP_MULTIPLIER = 4
-        const SP_HARD_CAP = 4000
-        const spUpperBound = Math.min(offset + limit * SP_MULTIPLIER, SP_HARD_CAP) - 1
+        if (solicitudIds.length > 0) {
+            const SP_HARD_CAP = 4000
+            const spUpperBound = soloDisponibles
+                ? SP_HARD_CAP - 1
+                : Math.min(offset + limit * 4, SP_HARD_CAP) - 1
 
-        let spQuery = supabase
-            .from('solicitud_paquete')
-            .select('paquete_id, transferencia_id')
-            .in('transferencia_id', solicitudIds)
-            .order('transferencia_id', { ascending: false }) // determinismo (más recientes primero)
-            .range(0, Math.max(spUpperBound, 0))
+            const { data: spRows, error: spError } = await supabase
+                .from('solicitud_paquete')
+                .select('paquete_id')
+                .in('transferencia_id', solicitudIds)
+                .order('transferencia_id', { ascending: false })
+                .range(0, Math.max(spUpperBound, 0))
 
-        const { data: spRows, error: spError } = await spQuery
-        if (spError) throw spError
+            if (spError) throw spError
+            codigosTransferidos = (spRows ?? []).map(r => r.paquete_id)
+        }
 
-        const paqueteCodigos = Array.from(new Set((spRows ?? []).map(r => r.paquete_id)))
+        // Unión de ambas fuentes (sin duplicados)
+        let paqueteCodigos = [...new Set([...codigosTransferidos, ...codigosDirectos])]
         if (paqueteCodigos.length === 0) return { data: [], count: 0 }
 
-        // 3) Ejecutar queries en paralelo (count, rows, facturados)
+        // ─── EXCLUSIONES (solo cuando soloDisponibles) ───────────────────────────
+        if (soloDisponibles) {
+            // Paquetes en transferencias salientes activas desde esta sucursal
+            const { data: outgoingTs } = await supabase
+                .from('transferencia_sucursal')
+                .select('id')
+                .eq('emisor_sucursal_id', session.sucursal.id)
+                .eq('delivery_status', false)
+
+            const [enTransitoData, facturadosData] = await Promise.all([
+                outgoingTs?.length > 0
+                    ? supabase
+                        .from('solicitud_paquete')
+                        .select('paquete_id')
+                        .in('transferencia_id', outgoingTs.map(r => r.id))
+                        .in('paquete_id', paqueteCodigos)
+                        .then(r => r.data)
+                    : Promise.resolve([]),
+                supabase
+                    .from('factura_detalle')
+                    .select('paquete_id')
+                    .in('paquete_id', paqueteCodigos)
+                    .then(r => r.data),
+            ])
+
+            const codigosExcluidos = new Set([
+                ...(enTransitoData ?? []).map(r => r.paquete_id),
+                ...(facturadosData ?? []).map(r => r.paquete_id),
+            ])
+
+            paqueteCodigos = paqueteCodigos.filter(c => !codigosExcluidos.has(c))
+            if (paqueteCodigos.length === 0) return { data: [], count: 0 }
+        }
+
+        // ─── FETCH PAGINADO ──────────────────────────────────────────────────────
         let countQuery = supabase
             .from('proveedor_paquetes')
             .select('id', { count: 'exact', head: true })
@@ -79,32 +130,41 @@ export const usePaquetes = () => {
             .order('id', { ascending: false })
             .range(offset, offset + limit - 1)
 
-        let facturadosQuery = supabase
-            .from('factura_detalle')
-            .select('paquete_id')
-            .in('paquete_id', paqueteCodigos)
+        if (soloDisponibles) {
+            const [
+                { count, error: countError },
+                { data: rows, error: rowsError }
+            ] = await Promise.all([countQuery, rowsQuery])
 
-        // ⚡ Ejecutar las 3 queries en paralelo para reducir tiempo de carga
-        const [
-            { count, error: countError },
-            { data: rows, error: rowsError },
-            { data: facturadosData }
-        ] = await Promise.all([countQuery, rowsQuery, facturadosQuery])
+            if (countError) throw countError
+            if (rowsError) throw rowsError
 
-        if (countError) throw countError
-        if (rowsError) throw rowsError
+            return { data: rows ?? [], count: count ?? 0 }
+        } else {
+            // Tabla general: muestra todos marcando cuáles están facturados
+            const facturadosQuery = supabase
+                .from('factura_detalle')
+                .select('paquete_id')
+                .in('paquete_id', paqueteCodigos)
 
-        const codigosFacturados = new Set(
-            (facturadosData ?? []).map(item => item.paquete_id)
-        )
+            const [
+                { count, error: countError },
+                { data: rows, error: rowsError },
+                { data: facturadosData }
+            ] = await Promise.all([countQuery, rowsQuery, facturadosQuery])
 
-        // Agregar propiedad 'facturado' a cada paquete
-        const rowsConFacturado = (rows ?? []).map(row => ({
-            ...row,
-            facturado: codigosFacturados.has(row.codigo)
-        }))
+            if (countError) throw countError
+            if (rowsError) throw rowsError
 
-        return { data: rowsConFacturado, count: count ?? 0 }
+            const codigosFacturados = new Set((facturadosData ?? []).map(item => item.paquete_id))
+
+            const rowsConFacturado = (rows ?? []).map(row => ({
+                ...row,
+                facturado: codigosFacturados.has(row.codigo)
+            }))
+
+            return { data: rowsConFacturado, count: count ?? 0 }
+        }
     }
 
     const { data, isLoading, isError, error } = useQuery({

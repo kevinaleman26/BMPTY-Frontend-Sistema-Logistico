@@ -138,27 +138,28 @@ export default function ClienteTable({ onEdit }) {
                             page: Math.max(page - 1, 0),
                             pageSize: limit
                         }}
-                        onPaginationModelChange={({ page, pageSize }) => {
-                            handlePageChange(page)
-                            handlePageSizeChange(pageSize)
+                        onPaginationModelChange={({ page: newPage, pageSize: newPageSize }) => {
+                            if (newPageSize !== limit) {
+                                handlePageSizeChange(newPageSize)
+                            } else {
+                                handlePageChange(newPage)
+                            }
                         }}
                         disableRowSelectionOnClick
-                        sx={dataGridStyles}
-        // ⚡ Performance optimizations
-        columnBuffer={2}
-        columnThreshold={2}
-        disableColumnResize
-        disableColumnReorder
-        hideFooterSelectedRowCount
-        sx={{
-            ...dataGridStyles,
-            '& .MuiDataGrid-virtualScroller': {
-                overscrollBehaviorX: 'contain',
-            },
-            '& .MuiDataGrid-row': {
-                willChange: 'transform',
-            }
-        }}
+                        columnBuffer={2}
+                        columnThreshold={2}
+                        disableColumnResize
+                        disableColumnReorder
+                        hideFooterSelectedRowCount
+                        sx={{
+                            ...dataGridStyles,
+                            '& .MuiDataGrid-virtualScroller': {
+                                overscrollBehaviorX: 'contain',
+                            },
+                            '& .MuiDataGrid-row': {
+                                willChange: 'transform',
+                            }
+                        }}
                     />
                 )}
             </Box>

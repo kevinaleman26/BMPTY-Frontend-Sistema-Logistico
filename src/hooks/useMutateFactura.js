@@ -49,41 +49,118 @@ export function useMutateFactura() {
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['facturas'] })
+            // Refresh available packages so just-invoiced packages disappear from selection table
+            qc.invalidateQueries({ queryKey: ['paquetes'] })
         }
     })
 
     const updateFactura = useMutation({
-        mutationFn: async ({ id, ...changes }) => {
-            // 1) Obtener valores actuales para detectar cambios de status
-            const { data: current, error: fetchErr } = await supabase
-                .from('factura')
-                .select('delivery_status, payment_status')
-                .eq('id', id)
-                .single()
-            if (fetchErr) throw fetchErr
-
+        mutationFn: async ({
+            id,
+            prevDeliveryStatus,
+            prevPaymentStatus,
+            ...changes
+        }) => {
             const payload = { ...changes }
             const nowIso = new Date().toISOString()
 
-            // 2) Si viene delivery_status y cambió, setear delivery_date y operador_entrega_id
-            if (typeof changes.delivery_status === 'boolean' && changes.delivery_status !== current.delivery_status) {
-                payload.delivery_date = changes.delivery_status ? nowIso : null
-                // operador_entrega_id should be passed from the modal when delivery_status = true
+            // Set delivery_date when delivery_status transitions to true
+            if (typeof changes.delivery_status === 'boolean') {
+                const wasDelivered = prevDeliveryStatus ?? false
+                if (changes.delivery_status !== wasDelivered) {
+                    payload.delivery_date = changes.delivery_status ? nowIso : null
+                }
             }
 
-            // 3) Si viene payment_status y cambió, setear payment_date
-            if (typeof changes.payment_status === 'boolean' && changes.payment_status !== current.payment_status) {
-                payload.payment_date = changes.payment_status ? nowIso : null
+            // Set payment_date when payment_status transitions to true
+            if (typeof changes.payment_status === 'boolean') {
+                const wasPaid = prevPaymentStatus ?? false
+                if (changes.payment_status !== wasPaid) {
+                    payload.payment_date = changes.payment_status ? nowIso : null
+                }
             }
 
-            // 4) Update
-            const { error: updErr } = await supabase.from('factura').update(payload).eq('id', id)
-            if (updErr) throw updErr
+            const { error } = await supabase.from('factura').update(payload).eq('id', id)
+            if (error) throw error
         },
-        onSuccess: () => {
+
+        // ─── Optimistic Update ───────────────────────────────────────────────────
+        onMutate: async ({ id, prevDeliveryStatus, prevPaymentStatus, ...changes }) => {
+            // Cancel any ongoing refetches to avoid overwriting the optimistic update
+            await qc.cancelQueries({ queryKey: ['facturas'] })
+
+            // Snapshot all current facturas cache entries for rollback
+            const previousQueries = qc.getQueriesData({ queryKey: ['facturas'] })
+
+            // Immediately update every matching cache entry
+            qc.setQueriesData({ queryKey: ['facturas'] }, (old) => {
+                if (!old?.data) return old
+                return {
+                    ...old,
+                    data: old.data.map(f =>
+                        f.id === id ? { ...f, ...changes } : f
+                    )
+                }
+            })
+
+            return { previousQueries }
+        },
+
+        // Roll back on server error
+        onError: (_err, _vars, context) => {
+            context?.previousQueries?.forEach(([queryKey, data]) => {
+                qc.setQueryData(queryKey, data)
+            })
+        },
+
+        // Always sync with server after mutation (success or failure)
+        onSettled: () => {
             qc.invalidateQueries({ queryKey: ['facturas'] })
         }
     })
 
-    return { createFactura, updateFactura }
+    const bulkUpdateFacturas = useMutation({
+        mutationFn: async ({ ids, delivery_status, payment_status }) => {
+            const payload = {}
+            const nowIso = new Date().toISOString()
+            if (delivery_status !== undefined) {
+                payload.delivery_status = delivery_status
+                payload.delivery_date = delivery_status ? nowIso : null
+            }
+            if (payment_status !== undefined) {
+                payload.payment_status = payment_status
+                payload.payment_date = payment_status ? nowIso : null
+            }
+            const { error } = await supabase.from('factura').update(payload).in('id', ids)
+            if (error) throw error
+        },
+        onMutate: async ({ ids, delivery_status, payment_status }) => {
+            await qc.cancelQueries({ queryKey: ['facturas'] })
+            const previousQueries = qc.getQueriesData({ queryKey: ['facturas'] })
+            qc.setQueriesData({ queryKey: ['facturas'] }, (old) => {
+                if (!old?.data) return old
+                return {
+                    ...old,
+                    data: old.data.map(f => {
+                        if (!ids.includes(f.id)) return f
+                        const updated = { ...f }
+                        if (delivery_status !== undefined) updated.delivery_status = delivery_status
+                        if (payment_status !== undefined) updated.payment_status = payment_status
+                        return updated
+                    })
+                }
+            })
+            return { previousQueries }
+        },
+        onError: (_err, _vars, context) => {
+            context?.previousQueries?.forEach(([queryKey, data]) => {
+                qc.setQueryData(queryKey, data)
+            })
+        },
+        onSettled: () => {
+            qc.invalidateQueries({ queryKey: ['facturas'] })
+        }
+    })
+
+    return { createFactura, updateFactura, bulkUpdateFacturas }
 }

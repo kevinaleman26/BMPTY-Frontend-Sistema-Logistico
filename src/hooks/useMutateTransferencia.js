@@ -108,5 +108,82 @@ export function useMutateTransferencia() {
         }
     })
 
-    return { createTransferencia, updateTransferencia }
+    const cancelTransferencia = useMutation({
+        mutationFn: async ({ id, emisorSucursalId, operadorId }) => {
+            // Step 1: Get packages linked to this transfer
+            const { data: solicitudes, error: spFetchErr } = await supabase
+                .from('solicitud_paquete')
+                .select('paquete_id')
+                .eq('transferencia_id', id)
+
+            if (spFetchErr) throw spFetchErr
+
+            const paqueteCodigos = (solicitudes ?? []).map(s => s.paquete_id)
+
+            // Step 2: Log TRANSFERENCIA_CANCELADA event for each package
+            if (paqueteCodigos.length > 0) {
+                await Promise.all(
+                    paqueteCodigos.map(codigo =>
+                        supabase.rpc('registrar_evento_paquete', {
+                            p_paquete_id: codigo,
+                            p_evento_tipo: 'TRANSFERENCIA_CANCELADA',
+                            p_sucursal_id: emisorSucursalId,
+                            p_operador_id: operadorId,
+                            p_cliente_id: null,
+                            p_transferencia_id: id,
+                            p_factura_id: null,
+                            p_detalles: null
+                        })
+                    )
+                )
+            }
+
+            // Step 3: Free packages by removing their transfer link
+            const { error: delSpErr } = await supabase
+                .from('solicitud_paquete')
+                .delete()
+                .eq('transferencia_id', id)
+
+            if (delSpErr) throw delSpErr
+
+            // Step 4: Delete the transfer record
+            const { error: delTsErr } = await supabase
+                .from('transferencia_sucursal')
+                .delete()
+                .eq('id', id)
+
+            if (delTsErr) throw delTsErr
+        },
+
+        // Optimistic: remove the row from cache immediately
+        onMutate: async ({ id }) => {
+            await queryClient.cancelQueries({ queryKey: ['transferencias'] })
+            const previousQueries = queryClient.getQueriesData({ queryKey: ['transferencias'] })
+
+            queryClient.setQueriesData({ queryKey: ['transferencias'] }, (old) => {
+                if (!old?.data) return old
+                return {
+                    ...old,
+                    data: old.data.filter(t => t.id !== id),
+                    count: Math.max((old.count ?? 1) - 1, 0)
+                }
+            })
+
+            return { previousQueries }
+        },
+
+        onError: (_err, _vars, context) => {
+            context?.previousQueries?.forEach(([queryKey, data]) => {
+                queryClient.setQueryData(queryKey, data)
+            })
+        },
+
+        onSettled: () => {
+            queryClient.invalidateQueries(['transferencias'])
+            queryClient.invalidateQueries(['deuda-sucursales'])
+            queryClient.invalidateQueries(['paquetes'])
+        }
+    })
+
+    return { createTransferencia, updateTransferencia, cancelTransferencia }
 }

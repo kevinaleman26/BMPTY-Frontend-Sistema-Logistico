@@ -6,7 +6,7 @@ import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
-import { EditIcon, DescriptionIcon } from '@/components/Icons'
+import { EditIcon, DescriptionIcon, CancelIcon } from '@/components/Icons'
 
 /**
  * Optimized cell components for TransferenciaTable
@@ -74,11 +74,13 @@ export const StatusChip = memo(function StatusChip({ status, type }) {
 export const ActionButtons = memo(function ActionButtons({
     row,
     canEdit,
+    canCancel,
     onEdit,
+    onCancel,
     onDownloadPDF
 }) {
     return (
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
             {/* PDF Download Button */}
             <Tooltip title="Descargar PDF">
                 <IconButton
@@ -97,6 +99,18 @@ export const ActionButtons = memo(function ActionButtons({
                         size="small"
                     >
                         <EditIcon sx={{ color: '#fff', fontSize: 20 }} />
+                    </IconButton>
+                </Tooltip>
+            )}
+
+            {/* Cancel Button - Only when transfer not yet received */}
+            {canCancel && !row.delivery_status && (
+                <Tooltip title="Cancelar transferencia">
+                    <IconButton
+                        onClick={() => onCancel(row)}
+                        size="small"
+                    >
+                        <CancelIcon sx={{ color: '#f44336', fontSize: 20 }} />
                     </IconButton>
                 </Tooltip>
             )}

@@ -287,25 +287,15 @@ export default function TransferenciaPDF({ data, qrCodeDataUrl }) {
                 {/* Sucursales */}
                 <View style={styles.sucursalesBlock}>
                     <View style={styles.sucursalCard}>
-                        <Text style={styles.sucursalTitle}>🏢 Sucursal Emisora</Text>
+                        <Text style={styles.sucursalTitle}>Sucursal Emisora</Text>
                         <Text style={styles.sucursalInfo}>
-                            <Text style={{ fontWeight: 'bold' }}>Nombre: </Text>
-                            {data?.emisor_sucursal?.name || 'N/A'}
-                        </Text>
-                        <Text style={styles.sucursalInfo}>
-                            <Text style={{ fontWeight: 'bold' }}>Código: </Text>
-                            {data?.emisor_sucursal?.codigo || 'N/A'}
+                            Nombre: {data?.emisor_sucursal?.name || 'N/A'}
                         </Text>
                     </View>
                     <View style={styles.sucursalCard}>
-                        <Text style={styles.sucursalTitle}>🏪 Sucursal Receptora</Text>
+                        <Text style={styles.sucursalTitle}>Sucursal Receptora</Text>
                         <Text style={styles.sucursalInfo}>
-                            <Text style={{ fontWeight: 'bold' }}>Nombre: </Text>
-                            {data?.receptor_sucursal?.name || 'N/A'}
-                        </Text>
-                        <Text style={styles.sucursalInfo}>
-                            <Text style={{ fontWeight: 'bold' }}>Código: </Text>
-                            {data?.receptor_sucursal?.codigo || 'N/A'}
+                            Nombre: {data?.receptor_sucursal?.name || 'N/A'}
                         </Text>
                     </View>
                 </View>
@@ -315,13 +305,13 @@ export default function TransferenciaPDF({ data, qrCodeDataUrl }) {
                     <View style={[styles.statusCard, data?.delivery_status ? styles.statusCompleted : styles.statusPending]}>
                         <Text style={styles.statusLabel}>Estado de Entrega</Text>
                         <Text style={styles.statusValue}>
-                            {data?.delivery_status ? '✓ Recibida' : '⏳ Pendiente'}
+                            {data?.delivery_status ? 'Recibida' : 'Pendiente'}
                         </Text>
                     </View>
                     <View style={[styles.statusCard, data?.payment_status ? styles.statusCompleted : styles.statusPending]}>
                         <Text style={styles.statusLabel}>Estado de Pago</Text>
                         <Text style={styles.statusValue}>
-                            {data?.payment_status ? '✓ Pagada' : '⏳ Pendiente'}
+                            {data?.payment_status ? 'Pagada' : 'Pendiente'}
                         </Text>
                     </View>
                 </View>

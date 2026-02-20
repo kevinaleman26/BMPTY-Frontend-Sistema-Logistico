@@ -10,7 +10,6 @@ import MenuItem from '@mui/material/MenuItem'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, useCallback } from 'react'
 
 const drawerWidth = 260
@@ -18,13 +17,16 @@ const drawerWidth = 260
 // ⚡ Client Component - Solo la parte interactiva del Navbar
 export default function NavbarClient() {
     const { session } = useSession()
-    const router = useRouter()
     const [anchorEl, setAnchorEl] = useState(null)
 
     const handleLogout = useCallback(async () => {
-        await supabase.auth.signOut()
-        router.push('/login')
-    }, [router])
+        setAnchorEl(null)
+        try {
+            await supabase.auth.signOut()
+        } finally {
+            window.location.href = '/login'
+        }
+    }, [])
 
     const handleMenuOpen = useCallback((event) => {
         setAnchorEl(event.currentTarget)

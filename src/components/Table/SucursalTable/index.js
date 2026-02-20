@@ -102,23 +102,6 @@ export default function SucursalTable({ onEdit }) {
             type: 'number'
         },
         {
-            field: 'codigo',
-            headerName: 'Código',
-            width: 100,
-            sortable: false,
-            filterable: false,
-            disableColumnMenu: true,
-            renderCell: (params) => (
-                <Box sx={{
-                    fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace',
-                    fontWeight: 600,
-                    color: '#f4b223'
-                }}>
-                    {params.value || '-'}
-                </Box>
-            )
-        },
-        {
             field: 'name',
             headerName: 'Nombre',
             flex: 1,

@@ -13,10 +13,7 @@ const getClientInfo = async (id) => {
 
     return {
         ...cliente,
-        role: {
-            id: 4,
-            name: 'Cliente'
-        }
+        role: { id: 4, name: 'Cliente' }
     }
 }
 
@@ -28,64 +25,61 @@ const getOperadorInfo = async (id) => {
         .single()
 
     if (error) return null
-
     return operador
 }
 
-// ⚡ Función para obtener la sesión completa con datos de usuario
-const fetchSession = async () => {
-    const { data } = await supabase.auth.getSession()
-
-    if (!data?.session) {
-        return null
-    }
-
-    const userId = data.session.user.id
-
-    // Hacer ambas consultas en paralelo
+// Fetches user profile from our tables given a userId
+const buildUserData = async (userId) => {
     const [clienteResult, operadorResult] = await Promise.allSettled([
         getClientInfo(userId),
         getOperadorInfo(userId)
     ])
 
-    // Retornar el resultado exitoso
     if (clienteResult.status === 'fulfilled' && clienteResult.value) {
         return clienteResult.value
     }
-
     if (operadorResult.status === 'fulfilled' && operadorResult.value) {
         return operadorResult.value
     }
-
     return null
 }
 
-// ⚡ Hook optimizado con React Query para deduplicación automática
+// Called once on initial page load to hydrate the cache.
+// Does NOT run inside any auth lock, so getSession() is safe here.
+const fetchSession = async () => {
+    const { data } = await supabase.auth.getSession()
+    if (!data?.session) return null
+    return await buildUserData(data.session.user.id)
+}
+
 export function useSession() {
     const queryClient = useQueryClient()
 
-    // Query principal de sesión
     const { data: session, isLoading: loading } = useQuery({
         queryKey: ['session'],
         queryFn: fetchSession,
-        staleTime: 5 * 60 * 1000, // Session es estable por 5 minutos
-        cacheTime: 10 * 60 * 1000, // Mantener en cache 10 minutos
-        refetchOnWindowFocus: false, // No refetch al cambiar de tab
-        retry: 1, // Solo 1 retry
+        staleTime: Infinity,          // Cache never goes stale — onAuthStateChange drives all updates
+        gcTime: 24 * 60 * 60 * 1000, // Keep in memory for 24h
+        refetchOnWindowFocus: false,
+        retry: 1,
     })
 
-    // ⚡ Listener de cambios de auth (invalida cache cuando cambia)
     useEffect(() => {
-        const { data: listener } = supabase.auth.onAuthStateChange(async (event) => {
-            if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
-                // Invalidar y refetch la sesión
-                await queryClient.invalidateQueries({ queryKey: ['session'] })
+        const { data: listener } = supabase.auth.onAuthStateChange(async (event, authSession) => {
+            if (event === 'SIGNED_OUT') {
+                // Set null directly — synchronous, no getSession() call, no lock contention
+                queryClient.setQueryData(['session'], null)
+            } else if (
+                (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
+                authSession?.user?.id
+            ) {
+                // Use userId from the event — avoids calling getSession() inside the auth lock
+                const userData = await buildUserData(authSession.user.id)
+                queryClient.setQueryData(['session'], userData)
             }
         })
 
-        return () => {
-            listener.subscription.unsubscribe()
-        }
+        return () => listener.subscription.unsubscribe()
     }, [queryClient])
 
     return { session: session ?? null, loading }

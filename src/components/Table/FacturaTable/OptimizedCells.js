@@ -1,7 +1,7 @@
 // Enhanced optimized cells for FacturaTable
 'use client'
 
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import IconButton from '@mui/material/IconButton'
@@ -52,6 +52,24 @@ export const DateCell = memo(function DateCell({ value }) {
 })
 
 /**
+ * Triggers PDF download outside the render phase to avoid setState-during-render errors.
+ * Must be a real component so useEffect runs after commit.
+ */
+function PDFTrigger({ url, loading, filename, onDone }) {
+    useEffect(() => {
+        if (!loading && url) {
+            const link = document.createElement('a')
+            link.href = url
+            link.download = filename
+            link.click()
+            onDone()
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [url, loading])
+    return null
+}
+
+/**
  * ⚡ OPTIMIZED Action Buttons for FacturaTable
  * Lazy loads PDF components only when needed
  */
@@ -79,7 +97,11 @@ export const FacturaActionButtons = memo(function FacturaActionButtons({ row, on
         return {
             id,
             nombreCliente: cliente.full_name,
+            codigoCliente: cliente.codigo || '',
             ruc: sucursal.ruc,
+            razonSocial: sucursal.razon_social,
+            telefono: sucursal.telefono,
+            emailEmpresa: sucursal.email,
             direccion: sucursal.address,
             sucursal: sucursal.name,
             logoUrl: '/logo.png',
@@ -89,7 +111,8 @@ export const FacturaActionButtons = memo(function FacturaActionButtons({ row, on
             otros,
             itbms: impuestos,
             total,
-            sucursalId: sucursal.id
+            sucursalId: sucursal.id,
+            fechaEmision: row.created_at
         }
     }, [row])
 
@@ -140,17 +163,14 @@ export const FacturaActionButtons = memo(function FacturaActionButtons({ row, on
                         fileName={filename}
                         style={{ display: 'none' }}
                     >
-                        {({ blob, url, loading, error }) => {
-                            if (!loading && url) {
-                                // Auto-download
-                                const link = document.createElement('a')
-                                link.href = url
-                                link.download = filename
-                                link.click()
-                                setPdfDialogOpen(false)
-                            }
-                            return null
-                        }}
+                        {({ url, loading }) => (
+                            <PDFTrigger
+                                url={url}
+                                loading={loading}
+                                filename={filename}
+                                onDone={() => setPdfDialogOpen(false)}
+                            />
+                        )}
                     </PDFDownloadLink>
                 )
             })()}

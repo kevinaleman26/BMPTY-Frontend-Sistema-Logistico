@@ -2,12 +2,19 @@
 
 import { useTransferencias } from '@/hooks/useTransferencias'
 import { useSession } from '@/hooks/useSession'
+import { useMutateTransferencia } from '@/hooks/useMutateTransferencia'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
+import DialogTitle from '@mui/material/DialogTitle'
 import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useMemo, useCallback, useState } from 'react'
+import { useMemo, useCallback, useState, useEffect } from 'react'
 import TransferenciaFilters from './TransferenciaFilters'
 import dynamic from 'next/dynamic'
 import { SucursalChip, TotalAmount, StatusChip, ActionButtons } from './OptimizedCells'
@@ -21,6 +28,21 @@ const PDFDownloadLink = dynamic(
 const TransferenciaPDF = dynamic(() => import('@/components/PDF/TransferenciaPDF'), {
   ssr: false
 })
+
+// Triggers PDF download outside the render phase to avoid setState-during-render errors.
+function PDFTrigger({ url, loading, filename, onDone }) {
+    useEffect(() => {
+        if (!loading && url) {
+            const link = document.createElement('a')
+            link.href = url
+            link.download = filename
+            link.click()
+            onDone()
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [url, loading])
+    return null
+}
 
 // Hoist helper function outside component
 const formatDate = (dateString) => {
@@ -38,9 +60,11 @@ export default function TransferenciaTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { session } = useSession()
+    const { cancelTransferencia } = useMutateTransferencia()
     const [qrCodes, setQrCodes] = useState({})
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false)
     const [selectedRow, setSelectedRow] = useState(null)
+    const [cancelTarget, setCancelTarget] = useState(null)
 
     const { data, count, isLoading, page, limit } = useTransferencias()
 
@@ -91,6 +115,22 @@ export default function TransferenciaTable({ onEdit }) {
         setSelectedRow(row)
         setPdfDialogOpen(true)
     }, [generateQRCode])
+
+    // Handle cancel: open confirmation dialog
+    const handleCancel = useCallback((row) => {
+        setCancelTarget(row)
+    }, [])
+
+    // Handle confirmed cancellation
+    const handleConfirmCancel = useCallback(async () => {
+        if (!cancelTarget) return
+        await cancelTransferencia.mutateAsync({
+            id: cancelTarget.id,
+            emisorSucursalId: cancelTarget.emisor_sucursal?.id ?? cancelTarget.emisor_sucursal_id,
+            operadorId: session?.id
+        })
+        setCancelTarget(null)
+    }, [cancelTarget, cancelTransferencia, session?.id])
 
     // ⚡ OPTIMIZED COLUMNS - Reduced complexity, memoized components
     const columns = useMemo(() => [
@@ -174,21 +214,22 @@ export default function TransferenciaTable({ onEdit }) {
         {
             field: 'accion',
             headerName: 'Acción',
-            width: 120,
+            width: 150,
             sortable: false,
             filterable: false,
             disableColumnMenu: true,
-            // Fixed width column - always visible
             renderCell: (params) => (
                 <ActionButtons
                     row={params.row}
                     canEdit={canEdit}
+                    canCancel={canEdit}
                     onEdit={onEdit}
+                    onCancel={handleCancel}
                     onDownloadPDF={handleDownloadPDF}
                 />
             )
         }
-    ], [canEdit, onEdit, handleDownloadPDF])
+    ], [canEdit, onEdit, handleCancel, handleDownloadPDF])
 
 
     return (
@@ -213,9 +254,12 @@ export default function TransferenciaTable({ onEdit }) {
                             page: Math.max(page - 1, 0),
                             pageSize: limit
                         }}
-                        onPaginationModelChange={({ page, pageSize }) => {
-                            handlePageChange(page)
-                            handlePageSizeChange(pageSize)
+                        onPaginationModelChange={({ page: newPage, pageSize: newPageSize }) => {
+                            if (newPageSize !== limit) {
+                                handlePageSizeChange(newPageSize)
+                            } else {
+                                handlePageChange(newPage)
+                            }
                         }}
                         disableRowSelectionOnClick
                         sx={{
@@ -240,6 +284,38 @@ export default function TransferenciaTable({ onEdit }) {
                 )}
             </Box>
 
+            {/* Cancel Confirmation Dialog */}
+            <Dialog
+                open={Boolean(cancelTarget)}
+                onClose={() => setCancelTarget(null)}
+                PaperProps={{ sx: { backgroundColor: '#1a1a1a', border: '1px solid #444' } }}
+            >
+                <DialogTitle sx={{ color: '#fff' }}>Cancelar transferencia</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ color: '#aaa' }}>
+                        ¿Estás seguro de que deseas cancelar la transferencia #{cancelTarget?.id}?
+                        Los paquetes quedarán disponibles nuevamente y esta acción no se puede deshacer.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => setCancelTarget(null)}
+                        disabled={cancelTransferencia.isPending}
+                    >
+                        Volver
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={handleConfirmCancel}
+                        disabled={cancelTransferencia.isPending}
+                    >
+                        {cancelTransferencia.isPending ? 'Cancelando...' : 'Confirmar cancelación'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
             {/* PDF Dialog - Hidden component for PDF generation */}
             {pdfDialogOpen && selectedRow && (
                 <PDFDownloadLink
@@ -260,17 +336,14 @@ export default function TransferenciaTable({ onEdit }) {
                     fileName={`Transferencia-${selectedRow.id}.pdf`}
                     style={{ display: 'none' }}
                 >
-                    {({ blob, url, loading, error }) => {
-                        if (!loading && url) {
-                            // Auto-download
-                            const link = document.createElement('a')
-                            link.href = url
-                            link.download = `Transferencia-${selectedRow.id}.pdf`
-                            link.click()
-                            setPdfDialogOpen(false)
-                        }
-                        return null
-                    }}
+                    {({ url, loading }) => (
+                        <PDFTrigger
+                            url={url}
+                            loading={loading}
+                            filename={`Transferencia-${selectedRow.id}.pdf`}
+                            onDone={() => setPdfDialogOpen(false)}
+                        />
+                    )}
                 </PDFDownloadLink>
             )}
         </Box>

@@ -94,12 +94,14 @@ export default function FacturaModal({ open, onClose, factura }) {
                 const descuento = factura?.descuento || 0
                 const otros = factura?.otros || 0
                 const impuestos = factura?.impuestos || 0
-                const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail.tarifa || 1)), 0)
+                const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail?.tarifa || 1)), 0)
                 const totalCalc = subtotalCalc - descuento + otros + impuestos
 
                 if (factura) {
                     const updatePayload = {
                         id: factura.id,
+                        prevDeliveryStatus: factura.delivery_status,
+                        prevPaymentStatus: factura.payment_status,
                         sucursal_id: values.sucursal_id,
                         cliente_id: values.cliente_id,
                         metodo_pago_id: values.metodo_pago_id,
@@ -167,9 +169,9 @@ export default function FacturaModal({ open, onClose, factura }) {
 
     // Calcular totales visibles
     const subtotal = useMemo(() => {
-        if (!formik.values.paqueteList?.length) return 0
+        if (!formik.values.paqueteList?.length || !clientDetail) return 0
         return formik.values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail.tarifa || 1)), 0)
-    }, [formik.values.paqueteList, formik.values.cliente_id])
+    }, [formik.values.paqueteList, clientDetail])
 
     const descuento = factura?.descuento || 0
     const otros = factura?.otros || 0
