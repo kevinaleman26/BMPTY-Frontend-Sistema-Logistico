@@ -1,6 +1,8 @@
 'use client'
 
 import { useClientePackages } from '@/hooks/useClientePackages'
+import { useClienteFacturas } from '@/hooks/useClienteFacturas'
+import { useClientePaquetes } from '@/hooks/useClientePaquetes'
 import { tokens } from '@/styles/tokens'
 import PaymentIcon from '@mui/icons-material/Payment'
 import MoneyOffIcon from '@mui/icons-material/MoneyOff'
@@ -22,16 +24,42 @@ import AccordionDetails from '@mui/material/AccordionDetails'
 import { DataGrid } from '@mui/x-data-grid'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import PaqueteTimelineModal from '@/components/Modal/PaqueteTimelineModal'
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
 import { CloseIcon } from '@/components/Icons'
 
+const PAGE_SIZE_OPTIONS = [5, 10, 25]
 
-/**
- * Modal de detalle del cliente
- * Muestra información del cliente, paquetes pagados, paquetes pendientes y totales
- */
 export default function ClienteDetailModal({ open, onClose, cliente }) {
-    const { paid, unpaid, totalPaid, totalUnpaid, packagesDelivered, packagesPending, isLoading } = useClientePackages(cliente?.id)
+    // Summary: totals and counts (lightweight query, no joins to details)
+    const { paidCount, unpaidCount, totalPaid, totalUnpaid, isLoading } = useClientePackages(cliente?.id)
+
+    // Pagination state — one per table, reset when cliente changes
+    const [paidFacturasPM, setPaidFacturasPM] = useState({ page: 0, pageSize: 5 })
+    const [unpaidFacturasPM, setUnpaidFacturasPM] = useState({ page: 0, pageSize: 5 })
+    const [deliveredPM, setDeliveredPM] = useState({ page: 0, pageSize: 5 })
+    const [pendingPM, setPendingPM] = useState({ page: 0, pageSize: 5 })
+
+    useEffect(() => {
+        setPaidFacturasPM({ page: 0, pageSize: 5 })
+        setUnpaidFacturasPM({ page: 0, pageSize: 5 })
+        setDeliveredPM({ page: 0, pageSize: 5 })
+        setPendingPM({ page: 0, pageSize: 5 })
+    }, [cliente?.id])
+
+    // Server-side paginated queries — only fetch current page
+    const { data: paidFacturasData, isFetching: fetchingPaidFacturas } = useClienteFacturas(
+        cliente?.id, { ...paidFacturasPM, paymentStatus: true }
+    )
+    const { data: unpaidFacturasData, isFetching: fetchingUnpaidFacturas } = useClienteFacturas(
+        cliente?.id, { ...unpaidFacturasPM, paymentStatus: false }
+    )
+    const { data: deliveredData, isFetching: fetchingDelivered } = useClientePaquetes(
+        cliente?.id, { ...deliveredPM, deliveryStatus: true }
+    )
+    const { data: pendingData, isFetching: fetchingPending } = useClientePaquetes(
+        cliente?.id, { ...pendingPM, deliveryStatus: false }
+    )
+
     const [timelineModalOpen, setTimelineModalOpen] = useState(false)
     const [selectedPackageCode, setSelectedPackageCode] = useState(null)
 
@@ -45,7 +73,6 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
         setSelectedPackageCode(null)
     }, [])
 
-    // Columnas para las tablas de facturas
     const invoiceColumns = useMemo(() => [
         {
             field: 'factura_id',
@@ -69,6 +96,7 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
             field: 'sucursal',
             headerName: 'Sucursal',
             flex: 1,
+            minWidth: 150,
             valueGetter: (value, row) => row.sucursal?.name || '—'
         },
         {
@@ -81,6 +109,9 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
             field: 'total',
             headerName: 'Total',
             width: 120,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => `$${row.total?.toFixed(2) || '0.00'}`,
             renderCell: (params) => (
                 <Typography sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 600 }}>
@@ -90,7 +121,6 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
         }
     ], [])
 
-    // Columnas para las tablas de paquetes
     const packageColumns = useMemo(() => [
         {
             field: 'factura_id',
@@ -101,6 +131,9 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
             field: 'codigo',
             headerName: 'Código',
             width: 180,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             renderCell: (params) => (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 600 }}>
@@ -115,9 +148,7 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                             }}
                             sx={{
                                 color: tokens.accent.secondary,
-                                '&:hover': {
-                                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                                }
+                                '&:hover': { backgroundColor: 'rgba(33, 150, 243, 0.1)' }
                             }}
                         >
                             <TimelineIcon sx={{ fontSize: 16 }} />
@@ -135,6 +166,9 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
             field: 'peso',
             headerName: 'Peso (kg)',
             width: 110,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value) => `${value || 0} kg`,
             renderCell: (params) => (
                 <Typography sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace' }}>
@@ -146,6 +180,9 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
             field: 'dimensiones',
             headerName: 'Dimensiones',
             width: 160,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value, row) => `${row.largo || 0}×${row.alto || 0}×${row.ancho || 0}`,
             renderCell: (params) => (
                 <Typography sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontSize: '0.8125rem' }}>
@@ -157,11 +194,15 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
             field: 'sucursal',
             headerName: 'Sucursal',
             flex: 1,
+            minWidth: 120,
         },
         {
             field: 'precio',
             headerName: 'Precio',
             width: 110,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
             valueGetter: (value) => `$${value?.toFixed(2) || '0.00'}`,
             renderCell: (params) => (
                 <Typography sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 600 }}>
@@ -169,7 +210,7 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                 </Typography>
             )
         }
-    ], [])
+    ], [handleOpenTimeline])
 
     return (
         <Dialog
@@ -186,7 +227,6 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                 }
             }}
         >
-            {/* Header */}
             <DialogTitle sx={{ borderBottom: `1px solid ${tokens.border.soft}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" sx={{ color: tokens.text.emphasis, fontWeight: 600 }}>
                     Detalle del Cliente
@@ -238,7 +278,6 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
 
                         {/* Cards de Totales */}
                         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3, mb: 4 }}>
-                            {/* Total Pagado */}
                             <Box sx={{
                                 p: 3,
                                 backgroundColor: tokens.surface.elevated,
@@ -246,47 +285,24 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                                 border: `1px solid ${tokens.border.soft}`,
                                 position: 'relative',
                                 overflow: 'hidden',
-                                '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: '3px',
-                                    background: '#4caf50'
-                                }
+                                '&::before': { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: '#4caf50' }
                             }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                                    <Box sx={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: '8px',
-                                        backgroundColor: 'rgba(76, 175, 80, 0.15)',
-                                        border: '1px solid rgba(76, 175, 80, 0.3)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
+                                    <Box sx={{ width: 40, height: 40, borderRadius: '8px', backgroundColor: 'rgba(76, 175, 80, 0.15)', border: '1px solid rgba(76, 175, 80, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <PaymentIcon sx={{ color: '#4caf50', fontSize: 20 }} />
                                     </Box>
                                     <Typography sx={{ color: tokens.text.secondary, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.75rem', fontWeight: 600 }}>
                                         Total Pagado
                                     </Typography>
                                 </Box>
-                                <Typography sx={{
-                                    fontSize: '2rem',
-                                    fontWeight: 700,
-                                    color: tokens.text.emphasis,
-                                    fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace'
-                                }}>
+                                <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: tokens.text.emphasis, fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace' }}>
                                     ${totalPaid.toFixed(2)}
                                 </Typography>
                                 <Typography sx={{ fontSize: '0.875rem', color: tokens.text.secondary, mt: 1 }}>
-                                    {paid.length} {paid.length === 1 ? 'factura' : 'facturas'}
+                                    {paidCount} {paidCount === 1 ? 'factura' : 'facturas'}
                                 </Typography>
                             </Box>
 
-                            {/* Total Adeudado */}
                             <Box sx={{
                                 p: 3,
                                 backgroundColor: tokens.surface.elevated,
@@ -294,43 +310,21 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                                 border: `1px solid ${tokens.border.soft}`,
                                 position: 'relative',
                                 overflow: 'hidden',
-                                '&::before': {
-                                    content: '""',
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: '3px',
-                                    background: '#ff9800'
-                                }
+                                '&::before': { content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: '#ff9800' }
                             }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                                    <Box sx={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: '8px',
-                                        backgroundColor: 'rgba(255, 152, 0, 0.15)',
-                                        border: '1px solid rgba(255, 152, 0, 0.3)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
+                                    <Box sx={{ width: 40, height: 40, borderRadius: '8px', backgroundColor: 'rgba(255, 152, 0, 0.15)', border: '1px solid rgba(255, 152, 0, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <MoneyOffIcon sx={{ color: '#ff9800', fontSize: 20 }} />
                                     </Box>
                                     <Typography sx={{ color: tokens.text.secondary, textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.75rem', fontWeight: 600 }}>
                                         Total Adeudado
                                     </Typography>
                                 </Box>
-                                <Typography sx={{
-                                    fontSize: '2rem',
-                                    fontWeight: 700,
-                                    color: tokens.text.emphasis,
-                                    fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace'
-                                }}>
+                                <Typography sx={{ fontSize: '2rem', fontWeight: 700, color: tokens.text.emphasis, fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace' }}>
                                     ${totalUnpaid.toFixed(2)}
                                 </Typography>
                                 <Typography sx={{ fontSize: '0.875rem', color: tokens.text.secondary, mt: 1 }}>
-                                    {unpaid.length} {unpaid.length === 1 ? 'factura' : 'facturas'}
+                                    {unpaidCount} {unpaidCount === 1 ? 'factura' : 'facturas'}
                                 </Typography>
                             </Box>
                         </Box>
@@ -349,25 +343,10 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon sx={{ color: tokens.text.primary }} />}
-                                sx={{
-                                    backgroundColor: 'transparent',
-                                    borderBottom: `1px solid ${tokens.border.subtle}`,
-                                    '&:hover': {
-                                        backgroundColor: 'rgba(244, 178, 35, 0.05)',
-                                    },
-                                }}
+                                sx={{ backgroundColor: 'transparent', borderBottom: `1px solid ${tokens.border.subtle}`, '&:hover': { backgroundColor: 'rgba(244, 178, 35, 0.05)' } }}
                             >
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <Box sx={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: '8px',
-                                        backgroundColor: 'rgba(244, 178, 35, 0.15)',
-                                        border: '1px solid rgba(244, 178, 35, 0.3)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
+                                    <Box sx={{ width: 40, height: 40, borderRadius: '8px', backgroundColor: 'rgba(244, 178, 35, 0.15)', border: '1px solid rgba(244, 178, 35, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <ReceiptIcon sx={{ color: tokens.accent.primary, fontSize: 20 }} />
                                     </Box>
                                     <Box>
@@ -375,48 +354,50 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                                             Facturas
                                         </Typography>
                                         <Typography sx={{ color: tokens.text.secondary, fontSize: '0.875rem' }}>
-                                            {paid.length + unpaid.length} facturas ({paid.length} pagadas, {unpaid.length} pendientes)
+                                            {paidCount + unpaidCount} facturas ({paidCount} pagadas, {unpaidCount} pendientes)
                                         </Typography>
                                     </Box>
                                 </Box>
                             </AccordionSummary>
                             <AccordionDetails sx={{ p: 3 }}>
-                                {/* Tabla de Facturas Pagadas */}
                                 <Box sx={{ mb: 3 }}>
                                     <Typography variant="h6" sx={{ color: tokens.text.emphasis, mb: 2, fontSize: '1rem', fontWeight: 600 }}>
-                                        Facturas Pagadas ({paid.length})
+                                        Facturas Pagadas ({paidFacturasData?.total ?? paidCount})
                                     </Typography>
                                     <Box sx={{ height: 300, width: '100%' }}>
                                         <DataGrid
-                                            rows={paid}
+                                            rows={paidFacturasData?.rows || []}
                                             columns={invoiceColumns}
-                                            pageSize={5}
-                                            rowsPerPageOptions={[5]}
+                                            rowCount={paidFacturasData?.total ?? 0}
+                                            paginationMode="server"
+                                            paginationModel={paidFacturasPM}
+                                            onPaginationModelChange={setPaidFacturasPM}
+                                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                                            loading={fetchingPaidFacturas}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
-                                            localeText={{
-                                                noRowsLabel: 'No hay facturas pagadas',
-                                            }}
+                                            localeText={{ noRowsLabel: 'No hay facturas pagadas' }}
                                         />
                                     </Box>
                                 </Box>
 
-                                {/* Tabla de Facturas Pendientes */}
                                 <Box>
                                     <Typography variant="h6" sx={{ color: tokens.text.emphasis, mb: 2, fontSize: '1rem', fontWeight: 600 }}>
-                                        Facturas Pendientes ({unpaid.length})
+                                        Facturas Pendientes ({unpaidFacturasData?.total ?? unpaidCount})
                                     </Typography>
                                     <Box sx={{ height: 300, width: '100%' }}>
                                         <DataGrid
-                                            rows={unpaid}
+                                            rows={unpaidFacturasData?.rows || []}
                                             columns={invoiceColumns}
-                                            pageSize={5}
-                                            rowsPerPageOptions={[5]}
+                                            rowCount={unpaidFacturasData?.total ?? 0}
+                                            paginationMode="server"
+                                            paginationModel={unpaidFacturasPM}
+                                            onPaginationModelChange={setUnpaidFacturasPM}
+                                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                                            loading={fetchingUnpaidFacturas}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
-                                            localeText={{
-                                                noRowsLabel: 'No hay facturas pendientes',
-                                            }}
+                                            localeText={{ noRowsLabel: 'No hay facturas pendientes' }}
                                         />
                                     </Box>
                                 </Box>
@@ -436,25 +417,10 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                         >
                             <AccordionSummary
                                 expandIcon={<ExpandMoreIcon sx={{ color: tokens.text.primary }} />}
-                                sx={{
-                                    backgroundColor: 'transparent',
-                                    borderBottom: `1px solid ${tokens.border.subtle}`,
-                                    '&:hover': {
-                                        backgroundColor: 'rgba(244, 178, 35, 0.05)',
-                                    },
-                                }}
+                                sx={{ backgroundColor: 'transparent', borderBottom: `1px solid ${tokens.border.subtle}`, '&:hover': { backgroundColor: 'rgba(244, 178, 35, 0.05)' } }}
                             >
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <Box sx={{
-                                        width: 40,
-                                        height: 40,
-                                        borderRadius: '8px',
-                                        backgroundColor: 'rgba(33, 150, 243, 0.15)',
-                                        border: '1px solid rgba(33, 150, 243, 0.3)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
+                                    <Box sx={{ width: 40, height: 40, borderRadius: '8px', backgroundColor: 'rgba(33, 150, 243, 0.15)', border: '1px solid rgba(33, 150, 243, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                         <LocalShippingIcon sx={{ color: tokens.accent.secondary, fontSize: 20 }} />
                                     </Box>
                                     <Box>
@@ -462,48 +428,50 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                                             Paquetes
                                         </Typography>
                                         <Typography sx={{ color: tokens.text.secondary, fontSize: '0.875rem' }}>
-                                            {packagesDelivered.length + packagesPending.length} paquetes ({packagesDelivered.length} entregados, {packagesPending.length} pendientes)
+                                            {(deliveredData?.total ?? 0) + (pendingData?.total ?? 0)} paquetes ({deliveredData?.total ?? 0} entregados, {pendingData?.total ?? 0} pendientes)
                                         </Typography>
                                     </Box>
                                 </Box>
                             </AccordionSummary>
                             <AccordionDetails sx={{ p: 3 }}>
-                                {/* Tabla de Paquetes Entregados */}
                                 <Box sx={{ mb: 3 }}>
                                     <Typography variant="h6" sx={{ color: tokens.text.emphasis, mb: 2, fontSize: '1rem', fontWeight: 600 }}>
-                                        Paquetes Entregados ({packagesDelivered.length})
+                                        Paquetes Entregados ({deliveredData?.total ?? 0})
                                     </Typography>
                                     <Box sx={{ height: 350, width: '100%' }}>
                                         <DataGrid
-                                            rows={packagesDelivered}
+                                            rows={deliveredData?.rows || []}
                                             columns={packageColumns}
-                                            pageSize={5}
-                                            rowsPerPageOptions={[5]}
+                                            rowCount={deliveredData?.total ?? 0}
+                                            paginationMode="server"
+                                            paginationModel={deliveredPM}
+                                            onPaginationModelChange={setDeliveredPM}
+                                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                                            loading={fetchingDelivered}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
-                                            localeText={{
-                                                noRowsLabel: 'No hay paquetes entregados',
-                                            }}
+                                            localeText={{ noRowsLabel: 'No hay paquetes entregados' }}
                                         />
                                     </Box>
                                 </Box>
 
-                                {/* Tabla de Paquetes Pendientes de Entrega */}
                                 <Box>
                                     <Typography variant="h6" sx={{ color: tokens.text.emphasis, mb: 2, fontSize: '1rem', fontWeight: 600 }}>
-                                        Paquetes Pendientes de Entrega ({packagesPending.length})
+                                        Paquetes Pendientes de Entrega ({pendingData?.total ?? 0})
                                     </Typography>
                                     <Box sx={{ height: 350, width: '100%' }}>
                                         <DataGrid
-                                            rows={packagesPending}
+                                            rows={pendingData?.rows || []}
                                             columns={packageColumns}
-                                            pageSize={5}
-                                            rowsPerPageOptions={[5]}
+                                            rowCount={pendingData?.total ?? 0}
+                                            paginationMode="server"
+                                            paginationModel={pendingPM}
+                                            onPaginationModelChange={setPendingPM}
+                                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                                            loading={fetchingPending}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
-                                            localeText={{
-                                                noRowsLabel: 'No hay paquetes pendientes de entrega',
-                                            }}
+                                            localeText={{ noRowsLabel: 'No hay paquetes pendientes de entrega' }}
                                         />
                                     </Box>
                                 </Box>
@@ -513,7 +481,6 @@ export default function ClienteDetailModal({ open, onClose, cliente }) {
                 )}
             </DialogContent>
 
-            {/* Modal de Cronología */}
             <PaqueteTimelineModal
                 open={timelineModalOpen}
                 onClose={handleCloseTimeline}

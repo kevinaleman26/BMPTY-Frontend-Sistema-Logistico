@@ -4,59 +4,39 @@ import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 
 /**
- * Hook para obtener facturas y paquetes de una sucursal específica
- * Retorna: facturas pagadas, facturas pendientes, totales
+ * Lightweight summary hook: totals and counts for a branch.
+ * Only fetches id, payment_status, total — no joins to details.
+ * Paginated table data is handled by useSucursalFacturas.
  */
 export const useSucursalPackages = (sucursalId) => {
-    const queryKey = ['sucursal-packages', sucursalId]
-
-    const queryFn = async () => {
-        if (!sucursalId) return { paid: [], unpaid: [], totalPaid: 0, totalUnpaid: 0 }
-
-        // Obtener todas las facturas de la sucursal con sus detalles
-        const { data: facturas, error } = await supabase
-            .from('factura')
-            .select(`
-                id,
-                payment_status,
-                delivery_status,
-                total,
-                created_at,
-                cliente:cliente_id ( id, full_name, email ),
-                metodo_pago:metodo_pago ( name ),
-                factura_detalle (
-                    id,
-                    paquete_id,
-                    proveedor_paquetes:proveedor_paquetes!factura_detalle_paquete_id_fkey (
-                        codigo, tipo, peso, precio
-                    )
-                )
-            `)
-            .eq('sucursal_id', sucursalId)
-            .order('created_at', { ascending: false })
-
-        if (error) throw error
-
-        // Separar facturas pagadas y pendientes
-        const paid = facturas?.filter(f => f.payment_status) || []
-        const unpaid = facturas?.filter(f => !f.payment_status) || []
-
-        // Calcular totales
-        const totalPaid = paid.reduce((sum, f) => sum + (f.total || 0), 0)
-        const totalUnpaid = unpaid.reduce((sum, f) => sum + (f.total || 0), 0)
-
-        return { paid, unpaid, totalPaid, totalUnpaid }
-    }
-
     const { data, isLoading, isError, error } = useQuery({
-        queryKey,
-        queryFn,
+        queryKey: ['sucursal-packages-summary', sucursalId],
+        queryFn: async () => {
+            if (!sucursalId) return { paidCount: 0, unpaidCount: 0, totalPaid: 0, totalUnpaid: 0 }
+
+            const { data: facturas, error } = await supabase
+                .from('factura')
+                .select('id, payment_status, total')
+                .eq('sucursal_id', sucursalId)
+
+            if (error) throw error
+
+            const paid = facturas?.filter(f => f.payment_status) || []
+            const unpaid = facturas?.filter(f => !f.payment_status) || []
+
+            return {
+                paidCount: paid.length,
+                unpaidCount: unpaid.length,
+                totalPaid: paid.reduce((s, f) => s + (f.total || 0), 0),
+                totalUnpaid: unpaid.reduce((s, f) => s + (f.total || 0), 0),
+            }
+        },
         enabled: !!sucursalId,
     })
 
     return {
-        paid: data?.paid || [],
-        unpaid: data?.unpaid || [],
+        paidCount: data?.paidCount || 0,
+        unpaidCount: data?.unpaidCount || 0,
         totalPaid: data?.totalPaid || 0,
         totalUnpaid: data?.totalUnpaid || 0,
         isLoading,

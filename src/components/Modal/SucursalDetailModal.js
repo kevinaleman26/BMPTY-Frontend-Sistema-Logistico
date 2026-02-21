@@ -1,6 +1,7 @@
 'use client'
 
 import { useSucursalPackages } from '@/hooks/useSucursalPackages'
+import { useSucursalFacturas } from '@/hooks/useSucursalFacturas'
 import { useSucursalTransferencias } from '@/hooks/useSucursalTransferencias'
 import { tokens } from '@/styles/tokens'
 import PaymentIcon from '@mui/icons-material/Payment'
@@ -24,7 +25,7 @@ import AccordionDetails from '@mui/material/AccordionDetails'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { DataGrid } from '@mui/x-data-grid'
 import { dataGridStyles } from '@/styles/dataGridStyles'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { CloseIcon } from '@/components/Icons'
 
 
@@ -32,8 +33,29 @@ import { CloseIcon } from '@/components/Icons'
  * Modal de detalle de la sucursal
  * Muestra información de la sucursal, paquetes pagados, paquetes pendientes y totales
  */
+const PAGE_SIZE_OPTIONS = [5, 10, 25]
+
 export default function SucursalDetailModal({ open, onClose, sucursal }) {
-    const { paid, unpaid, totalPaid, totalUnpaid, isLoading } = useSucursalPackages(sucursal?.id)
+    // Summary: totals and counts (lightweight query, no joins to details)
+    const { paidCount, unpaidCount, totalPaid, totalUnpaid, isLoading } = useSucursalPackages(sucursal?.id)
+
+    // Pagination state — reset when sucursal changes
+    const [paidFacturasPM, setPaidFacturasPM] = useState({ page: 0, pageSize: 5 })
+    const [unpaidFacturasPM, setUnpaidFacturasPM] = useState({ page: 0, pageSize: 5 })
+
+    useEffect(() => {
+        setPaidFacturasPM({ page: 0, pageSize: 5 })
+        setUnpaidFacturasPM({ page: 0, pageSize: 5 })
+    }, [sucursal?.id])
+
+    // Server-side paginated queries — only fetch current page
+    const { data: paidFacturasData, isFetching: fetchingPaidFacturas } = useSucursalFacturas(
+        sucursal?.id, { ...paidFacturasPM, paymentStatus: true }
+    )
+    const { data: unpaidFacturasData, isFetching: fetchingUnpaidFacturas } = useSucursalFacturas(
+        sucursal?.id, { ...unpaidFacturasPM, paymentStatus: false }
+    )
+
     const {
         enviadas,
         recibidas,
@@ -43,16 +65,6 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
         deudaPorCobrar,
         isLoading: isLoadingTransferencias
     } = useSucursalTransferencias(sucursal?.id)
-
-    console.log('🏢 SucursalDetailModal:', {
-        sucursal: sucursal?.name,
-        sucursalId: sucursal?.id,
-        enviadas: enviadas.length,
-        recibidas: recibidas.length,
-        deudaAPagar,
-        deudaPorCobrar,
-        isLoadingTransferencias
-    })
 
     // Columnas para las tablas de facturas
     const facturaColumns = useMemo(() => [
@@ -312,7 +324,7 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
                                     ${totalPaid.toFixed(2)}
                                 </Typography>
                                 <Typography sx={{ fontSize: '0.875rem', color: tokens.text.secondary, mt: 1 }}>
-                                    {paid.length} {paid.length === 1 ? 'factura' : 'facturas'}
+                                    {paidCount} {paidCount === 1 ? 'factura' : 'facturas'}
                                 </Typography>
                             </Box>
 
@@ -360,7 +372,7 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
                                     ${totalUnpaid.toFixed(2)}
                                 </Typography>
                                 <Typography sx={{ fontSize: '0.875rem', color: tokens.text.secondary, mt: 1 }}>
-                                    {unpaid.length} {unpaid.length === 1 ? 'factura' : 'facturas'}
+                                    {unpaidCount} {unpaidCount === 1 ? 'factura' : 'facturas'}
                                 </Typography>
                             </Box>
 
@@ -566,23 +578,21 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
                                 {/* Facturas Pagadas */}
                                 <Box sx={{ mb: 3 }}>
                                     <Typography variant="h6" sx={{ color: tokens.text.emphasis, mb: 2, fontSize: '1rem', fontWeight: 600 }}>
-                                        Facturas Pagadas ({paid.length})
+                                        Facturas Pagadas ({paidFacturasData?.total ?? paidCount})
                                     </Typography>
                                     <Box sx={{ height: 300, width: '100%' }}>
                                         <DataGrid
-                                            rows={paid}
+                                            rows={paidFacturasData?.rows || []}
                                             columns={facturaColumns}
-                                            initialState={{
-                                                pagination: {
-                                                    paginationModel: { pageSize: 5, page: 0 }
-                                                }
-                                            }}
-                                            pageSizeOptions={[5, 10]}
+                                            rowCount={paidFacturasData?.total ?? 0}
+                                            paginationMode="server"
+                                            paginationModel={paidFacturasPM}
+                                            onPaginationModelChange={setPaidFacturasPM}
+                                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                                            loading={fetchingPaidFacturas}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
-                                            localeText={{
-                                                noRowsLabel: 'No hay facturas pagadas',
-                                            }}
+                                            localeText={{ noRowsLabel: 'No hay facturas pagadas' }}
                                         />
                                     </Box>
                                 </Box>
@@ -590,23 +600,21 @@ export default function SucursalDetailModal({ open, onClose, sucursal }) {
                                 {/* Facturas Pendientes */}
                                 <Box>
                                     <Typography variant="h6" sx={{ color: tokens.text.emphasis, mb: 2, fontSize: '1rem', fontWeight: 600 }}>
-                                        Facturas Pendientes ({unpaid.length})
+                                        Facturas Pendientes ({unpaidFacturasData?.total ?? unpaidCount})
                                     </Typography>
                                     <Box sx={{ height: 300, width: '100%' }}>
                                         <DataGrid
-                                            rows={unpaid}
+                                            rows={unpaidFacturasData?.rows || []}
                                             columns={facturaColumns}
-                                            initialState={{
-                                                pagination: {
-                                                    paginationModel: { pageSize: 5, page: 0 }
-                                                }
-                                            }}
-                                            pageSizeOptions={[5, 10]}
+                                            rowCount={unpaidFacturasData?.total ?? 0}
+                                            paginationMode="server"
+                                            paginationModel={unpaidFacturasPM}
+                                            onPaginationModelChange={setUnpaidFacturasPM}
+                                            pageSizeOptions={PAGE_SIZE_OPTIONS}
+                                            loading={fetchingUnpaidFacturas}
                                             disableRowSelectionOnClick
                                             sx={dataGridStyles}
-                                            localeText={{
-                                                noRowsLabel: 'No hay facturas pendientes',
-                                            }}
+                                            localeText={{ noRowsLabel: 'No hay facturas pendientes' }}
                                         />
                                     </Box>
                                 </Box>

@@ -16,6 +16,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.7",
     "@mui/material": "^7.3.7",
+    "@mui/x-charts": "^8.27.0",
     "@mui/x-data-grid": "^8.27.0",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/ssr": "^0.8.0",

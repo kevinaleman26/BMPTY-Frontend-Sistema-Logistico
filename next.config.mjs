@@ -16,7 +16,7 @@ const nextConfig = {
   // Experimental optimizations
   experimental: {
     // Optimize package imports to reduce bundle size
-    optimizePackageImports: ['@mui/material', '@mui/icons-material', '@mui/x-data-grid'],
+    optimizePackageImports: ['@mui/material', '@mui/icons-material', '@mui/x-data-grid', '@mui/x-charts'],
   },
 
   // Compiler options
