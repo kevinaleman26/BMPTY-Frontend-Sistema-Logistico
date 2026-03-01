@@ -6,6 +6,8 @@ import { useMutateTransferencia } from '@/hooks/useMutateTransferencia'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Checkbox from '@mui/material/Checkbox'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
@@ -16,18 +18,7 @@ import { DataGrid } from '@mui/x-data-grid'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMemo, useCallback, useState, useEffect } from 'react'
 import TransferenciaFilters from './TransferenciaFilters'
-import dynamic from 'next/dynamic'
 import { SucursalChip, TotalAmount, StatusChip, ActionButtons } from './OptimizedCells'
-
-
-// ⚡ Dynamic imports para reducir bundle inicial
-const PDFDownloadLink = dynamic(
-  () => import('@react-pdf/renderer').then(mod => ({ default: mod.PDFDownloadLink })),
-  { ssr: false }
-)
-const TransferenciaPDF = dynamic(() => import('@/components/PDF/TransferenciaPDF'), {
-  ssr: false
-})
 
 // Triggers PDF download outside the render phase to avoid setState-during-render errors.
 function PDFTrigger({ url, loading, filename, onDone }) {
@@ -60,13 +51,35 @@ export default function TransferenciaTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { session } = useSession()
-    const { cancelTransferencia } = useMutateTransferencia()
+    const { cancelTransferencia, bulkUpdateTransferencias } = useMutateTransferencia()
     const [qrCodes, setQrCodes] = useState({})
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false)
     const [selectedRow, setSelectedRow] = useState(null)
     const [cancelTarget, setCancelTarget] = useState(null)
+    const [pdfComponents, setPdfComponents] = useState(null)
+    const [selectedRows, setSelectedRows] = useState([])
 
-    const { data, count, isLoading, page, limit } = useTransferencias()
+    const { data, count, isLoading, page, limit, orderBy, orderDir } = useTransferencias()
+    const rows = data?.data || []
+
+    const sortModel = useMemo(() => [{ field: orderBy, sort: orderDir }], [orderBy, orderDir])
+
+    const handleSortModelChange = useCallback((model) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (model.length > 0) {
+            params.set('orderBy', model[0].field)
+            params.set('orderDir', model[0].sort || 'asc')
+        } else {
+            params.set('orderBy', 'created_at')
+            params.set('orderDir', 'desc')
+        }
+        params.set('page', '1')
+        setSelectedRows([])
+        router.push(`?${params.toString()}`)
+    }, [searchParams, router])
+
+    // SuperAdmin and Admin can change payment status
+    const canChangePayment = session?.role?.id === 1 || session?.role?.id === 2
 
     // ⚡ Generate QR code with dynamic import to reduce bundle
     const generateQRCode = useCallback(async (transferId) => {
@@ -94,6 +107,7 @@ export default function TransferenciaTable({ onEdit }) {
     const handlePageChange = useCallback((newPage) => {
         const params = new URLSearchParams(searchParams.toString())
         params.set('page', newPage + 1)
+        setSelectedRows([])
         router.push(`?${params.toString()}`)
     }, [searchParams, router])
 
@@ -101,6 +115,7 @@ export default function TransferenciaTable({ onEdit }) {
         const params = new URLSearchParams(searchParams.toString())
         params.set('limit', newLimit)
         params.set('page', 1)
+        setSelectedRows([])
         router.push(`?${params.toString()}`)
     }, [searchParams, router])
 
@@ -109,12 +124,46 @@ export default function TransferenciaTable({ onEdit }) {
         return session?.role?.id === 1 || session?.role?.id === 2
     }, [session?.role?.id])
 
+    const handleSelectAll = useCallback((e) => {
+        if (e.target.checked) {
+            setSelectedRows(rows)
+        } else {
+            setSelectedRows([])
+        }
+    }, [rows])
+
+    const handleSelectOne = useCallback((row) => {
+        setSelectedRows(prev => {
+            const isSelected = prev.some(r => r.id === row.id)
+            if (isSelected) return prev.filter(r => r.id !== row.id)
+            return [...prev, row]
+        })
+    }, [])
+
+    const handleBulkUpdate = useCallback(async (changes) => {
+        const ids = selectedRows.map(r => r.id)
+        await bulkUpdateTransferencias.mutateAsync({ ids, ...changes })
+        setSelectedRows([])
+    }, [selectedRows, bulkUpdateTransferencias])
+
     // Handle PDF download
     const handleDownloadPDF = useCallback(async (row) => {
         await generateQRCode(row.id)
         setSelectedRow(row)
+        if (!pdfComponents) {
+            try {
+                const [{ PDFDownloadLink }, TransferenciaPDF] = await Promise.all([
+                    import('@react-pdf/renderer'),
+                    import('@/components/PDF/TransferenciaPDF')
+                ])
+                setPdfComponents({ PDFDownloadLink, TransferenciaPDF: TransferenciaPDF.default })
+            } catch (error) {
+                console.error('Error loading PDF components:', error)
+                return
+            }
+        }
         setPdfDialogOpen(true)
-    }, [generateQRCode])
+    }, [generateQRCode, pdfComponents])
 
     // Handle cancel: open confirmation dialog
     const handleCancel = useCallback((row) => {
@@ -135,30 +184,52 @@ export default function TransferenciaTable({ onEdit }) {
     // ⚡ OPTIMIZED COLUMNS - Reduced complexity, memoized components
     const columns = useMemo(() => [
         {
-            field: 'id',
-            headerName: 'ID',
-            width: 80,
-            // Simple field, no renderCell needed
-        },
-        {
-            field: 'emisor_sucursal',
-            headerName: 'Sucursal Emisora',
-            flex: 1,
-            minWidth: 150,
+            field: 'select',
+            headerName: '',
+            width: 50,
             sortable: false,
             filterable: false,
             disableColumnMenu: true,
+            renderHeader: () => (
+                <Checkbox
+                    checked={rows.length > 0 && selectedRows.length === rows.length}
+                    indeterminate={selectedRows.length > 0 && selectedRows.length < rows.length}
+                    onChange={handleSelectAll}
+                    sx={{ color: '#f4b223', '&.Mui-checked': { color: '#f4b223' }, '&.MuiCheckbox-indeterminate': { color: '#f4b223' } }}
+                />
+            ),
+            renderCell: (params) => {
+                const isSelected = selectedRows.some(r => r.id === params.row.id)
+                return (
+                    <Checkbox
+                        checked={isSelected}
+                        onChange={() => handleSelectOne(params.row)}
+                        sx={{ color: '#f4b223', '&.Mui-checked': { color: '#f4b223' } }}
+                    />
+                )
+            }
+        },
+        {
+            field: 'id',
+            headerName: 'ID',
+            width: 80,
+            filterable: false,
+        },
+        {
+            field: 'emisor_sucursal_id',
+            headerName: 'Sucursal Emisora',
+            flex: 1,
+            minWidth: 150,
+            filterable: false,
             valueGetter: (value, row) => row.emisor_sucursal?.name || '—',
             renderCell: (params) => <SucursalChip name={params.value} />
         },
         {
-            field: 'receptor_sucursal',
+            field: 'receptor_sucursal_id',
             headerName: 'Sucursal Receptora',
             flex: 1,
             minWidth: 150,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             valueGetter: (value, row) => row.receptor_sucursal?.name || '—',
             renderCell: (params) => <SucursalChip name={params.value} />
         },
@@ -166,19 +237,15 @@ export default function TransferenciaTable({ onEdit }) {
             field: 'total',
             headerName: 'Monto Total',
             width: 130,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => <TotalAmount value={params.value} />
         },
         {
-            field: 'metodo_pago',
+            field: 'metodo_pago_id',
             headerName: 'Método de Pago',
             flex: 1,
             minWidth: 150,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             valueGetter: (value, row) => row.metodo_pago?.name || 'Pendiente',
             renderCell: (params) => <StatusChip status={params.value} type="metodo" />
         },
@@ -186,18 +253,14 @@ export default function TransferenciaTable({ onEdit }) {
             field: 'delivery_status',
             headerName: 'Estado Entrega',
             width: 140,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => <StatusChip status={params.value} type="delivery" />
         },
         {
             field: 'payment_status',
             headerName: 'Estado Pago',
             width: 140,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => <StatusChip status={params.value} type="payment" />
         },
         {
@@ -205,11 +268,8 @@ export default function TransferenciaTable({ onEdit }) {
             headerName: 'Creado en',
             flex: 1,
             minWidth: 180,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             valueGetter: (value) => formatDate(value),
-            // Use valueGetter instead of renderCell for better performance
         },
         {
             field: 'accion',
@@ -229,13 +289,90 @@ export default function TransferenciaTable({ onEdit }) {
                 />
             )
         }
-    ], [canEdit, onEdit, handleCancel, handleDownloadPDF])
+    ], [rows, selectedRows, handleSelectAll, handleSelectOne, canEdit, onEdit, handleCancel, handleDownloadPDF])
 
 
     return (
         <Box sx={{ width: '100%' }}>
             {/* Filtros */}
             <TransferenciaFilters />
+
+            {/* Barra de acciones masivas */}
+            {selectedRows.length > 0 && (
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    mb: 1,
+                    backgroundColor: '#111',
+                    border: '1px solid #f4b223',
+                    borderRadius: 1,
+                    flexWrap: 'wrap'
+                }}>
+                    <Chip
+                        label={`${selectedRows.length} seleccionada${selectedRows.length > 1 ? 's' : ''}`}
+                        size="small"
+                        sx={{ backgroundColor: '#f4b223', color: '#000', fontWeight: 700 }}
+                    />
+
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="success"
+                            onClick={() => handleBulkUpdate({ delivery_status: true })}
+                            disabled={bulkUpdateTransferencias.isPending}
+                            sx={{ textTransform: 'none' }}
+                        >
+                            Marcar entregado
+                        </Button>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleBulkUpdate({ delivery_status: false })}
+                            disabled={bulkUpdateTransferencias.isPending}
+                            sx={{ textTransform: 'none', borderColor: '#666', color: '#aaa' }}
+                        >
+                            Pendiente entrega
+                        </Button>
+
+                        {canChangePayment && (
+                            <>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="success"
+                                    onClick={() => handleBulkUpdate({ payment_status: true })}
+                                    disabled={bulkUpdateTransferencias.isPending}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Marcar pagado
+                                </Button>
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={() => handleBulkUpdate({ payment_status: false })}
+                                    disabled={bulkUpdateTransferencias.isPending}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Pendiente pago
+                                </Button>
+                            </>
+                        )}
+                    </Box>
+
+                    <Button
+                        size="small"
+                        variant="text"
+                        onClick={() => setSelectedRows([])}
+                        sx={{ ml: 'auto', color: '#666', textTransform: 'none' }}
+                    >
+                        Limpiar selección
+                    </Button>
+                </Box>
+            )}
 
             {/* Tabla */}
             <Box sx={{ height: 500, width: '100%' }}>
@@ -245,7 +382,7 @@ export default function TransferenciaTable({ onEdit }) {
                     </Box>
                 ) : (
                     <DataGrid
-                        rows={data?.data || []}
+                        rows={rows}
                         columns={columns}
                         rowCount={count || 0}
                         paginationMode="server"
@@ -261,10 +398,12 @@ export default function TransferenciaTable({ onEdit }) {
                                 handlePageChange(newPage)
                             }
                         }}
+                        sortingMode="server"
+                        sortModel={sortModel}
+                        onSortModelChange={handleSortModelChange}
                         disableRowSelectionOnClick
                         sx={{
                             ...dataGridStyles,
-                            // ⚡ Performance optimizations for horizontal scroll
                             '& .MuiDataGrid-virtualScroller': {
                                 overscrollBehaviorX: 'contain',
                             },
@@ -272,13 +411,10 @@ export default function TransferenciaTable({ onEdit }) {
                                 willChange: 'transform',
                             }
                         }}
-                        // ⚡ Enable column virtualization for better performance
                         columnBuffer={2}
                         columnThreshold={2}
-                        // ⚡ Disable expensive features for better scroll performance
                         disableColumnResize
                         disableColumnReorder
-                        // ⚡ Reduce render complexity
                         hideFooterSelectedRowCount
                     />
                 )}
@@ -317,35 +453,38 @@ export default function TransferenciaTable({ onEdit }) {
             </Dialog>
 
             {/* PDF Dialog - Hidden component for PDF generation */}
-            {pdfDialogOpen && selectedRow && (
-                <PDFDownloadLink
-                    document={
-                        <TransferenciaPDF
-                            data={{
-                                ...selectedRow,
-                                paquetes: selectedRow.solicitud_paquete?.map(sp => ({
-                                    codigo: sp.paquete?.codigo || sp.paquete_id,
-                                    tipo: sp.paquete?.tipo || 'N/A',
-                                    peso: sp.paquete?.peso || 0,
-                                    precio: sp.paquete?.precio || 0
-                                })) || []
-                            }}
-                            qrCodeDataUrl={qrCodes[selectedRow.id] || null}
-                        />
-                    }
-                    fileName={`Transferencia-${selectedRow.id}.pdf`}
-                    style={{ display: 'none' }}
-                >
-                    {({ url, loading }) => (
-                        <PDFTrigger
-                            url={url}
-                            loading={loading}
-                            filename={`Transferencia-${selectedRow.id}.pdf`}
-                            onDone={() => setPdfDialogOpen(false)}
-                        />
-                    )}
-                </PDFDownloadLink>
-            )}
+            {pdfDialogOpen && selectedRow && pdfComponents && (() => {
+                const { PDFDownloadLink, TransferenciaPDF } = pdfComponents
+                return (
+                    <PDFDownloadLink
+                        document={
+                            <TransferenciaPDF
+                                data={{
+                                    ...selectedRow,
+                                    paquetes: selectedRow.solicitud_paquete?.map(sp => ({
+                                        codigo: sp.paquete?.codigo || sp.paquete_id,
+                                        tipo: sp.paquete?.tipo || 'N/A',
+                                        peso: sp.paquete?.peso || 0,
+                                        precio: sp.paquete?.precio || 0
+                                    })) || []
+                                }}
+                                qrCodeDataUrl={qrCodes[selectedRow.id] || null}
+                            />
+                        }
+                        fileName={`Transferencia-${selectedRow.id}.pdf`}
+                        style={{ display: 'none' }}
+                    >
+                        {({ url, loading }) => (
+                            <PDFTrigger
+                                url={url}
+                                loading={loading}
+                                filename={`Transferencia-${selectedRow.id}.pdf`}
+                                onDone={() => setPdfDialogOpen(false)}
+                            />
+                        )}
+                    </PDFDownloadLink>
+                )
+            })()}
         </Box>
     )
 }

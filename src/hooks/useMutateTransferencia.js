@@ -185,5 +185,22 @@ export function useMutateTransferencia() {
         }
     })
 
-    return { createTransferencia, updateTransferencia, cancelTransferencia }
+    const bulkUpdateTransferencias = useMutation({
+        mutationFn: async ({ ids, delivery_status, payment_status }) => {
+            const updates = {}
+            if (delivery_status !== undefined) updates.delivery_status = delivery_status
+            if (payment_status !== undefined) updates.payment_status = payment_status
+            const { error } = await supabase
+                .from('transferencia_sucursal')
+                .update(updates)
+                .in('id', ids)
+            if (error) throw error
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['transferencias'] })
+            queryClient.invalidateQueries({ queryKey: ['deuda-sucursales'] })
+        }
+    })
+
+    return { createTransferencia, updateTransferencia, cancelTransferencia, bulkUpdateTransferencias }
 }

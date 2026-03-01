@@ -15,13 +15,16 @@ export const useSucursales = () => {
     const nombre = searchParams.get('name') || ''
     const direccion = searchParams.get('address') || ''
     const estado = searchParams.get('status') || ''
+    const orderBy = searchParams.get('orderBy') || 'id'
+    const orderDir = searchParams.get('orderDir') || 'asc'
 
-    const queryKey = ['sucursales', { page, limit, nombre, direccion, estado }]
+    const queryKey = ['sucursales', { page, limit, nombre, direccion, estado, orderBy, orderDir }]
 
     const queryFn = async () => {
         let query = supabase
             .from('sucursal')
             .select('*', { count: 'exact' })
+            .order(orderBy, { ascending: orderDir === 'asc' })
             .range(from, to)
 
         if (nombre) query = query.ilike('name', `%${nombre}%`)
@@ -43,6 +46,8 @@ export const useSucursales = () => {
         isLoading,
         isError,
         page,
-        limit
+        limit,
+        orderBy,
+        orderDir
     }
 }

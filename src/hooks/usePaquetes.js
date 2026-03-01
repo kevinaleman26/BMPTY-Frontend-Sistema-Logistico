@@ -5,20 +5,22 @@ import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 
-export const usePaquetes = ({ soloDisponibles = false } = {}) => {
+export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } = {}) => {
     const searchParams = useSearchParams()
     const { session, loading } = useSession()
 
-    const page = Number(searchParams.get('page')) || 1
-    const limit = Number(searchParams.get('limit')) || 10
+    const page = localPage ?? (Number(searchParams.get('page')) || 1)
+    const limit = localLimit ?? (Number(searchParams.get('limit')) || 10)
 
     const factura_id = searchParams.get('factura_id') || ''
     const tipo = searchParams.get('tipo') || ''
     const codigo = searchParams.get('codigo') || ''
+    const orderBy = searchParams.get('orderBy') || 'codigo'
+    const orderDir = searchParams.get('orderDir') || 'desc'
 
     const offset = (page - 1) * limit
 
-    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, sucursal: session?.sucursal?.id, soloDisponibles }]
+    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, orderBy, orderDir, sucursal: session?.sucursal?.id, soloDisponibles }]
 
     const queryFn = async () => {
         if (!session?.sucursal?.id) return { data: [], count: 0 }
@@ -127,7 +129,7 @@ export const usePaquetes = ({ soloDisponibles = false } = {}) => {
         if (codigo) rowsQuery = rowsQuery.ilike('codigo', `%${codigo}%`)
 
         rowsQuery = rowsQuery
-            .order('id', { ascending: false })
+            .order(orderBy, { ascending: orderDir === 'asc' })
             .range(offset, offset + limit - 1)
 
         if (soloDisponibles) {
@@ -184,6 +186,8 @@ export const usePaquetes = ({ soloDisponibles = false } = {}) => {
         factura_id,
         tipo,
         codigo,
+        orderBy,
+        orderDir,
         count: data?.count || 0
     }
 }

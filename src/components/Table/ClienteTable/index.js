@@ -22,7 +22,22 @@ export default function ClienteTable({ onEdit }) {
     const [detailModalOpen, setDetailModalOpen] = useState(false)
     const [selectedCliente, setSelectedCliente] = useState(null)
 
-    const { data, count, isLoading, page, limit } = useClientes()
+    const { data, count, isLoading, page, limit, orderBy, orderDir } = useClientes()
+
+    const sortModel = useMemo(() => [{ field: orderBy, sort: orderDir }], [orderBy, orderDir])
+
+    const handleSortModelChange = useCallback((model) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (model.length > 0) {
+            params.set('orderBy', model[0].field)
+            params.set('orderDir', model[0].sort || 'asc')
+        } else {
+            params.set('orderBy', 'full_name')
+            params.set('orderDir', 'asc')
+        }
+        params.set('page', '1')
+        router.push(`?${params.toString()}`)
+    }, [searchParams, router])
 
     const handlePageChange = useCallback((newPage) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -49,12 +64,10 @@ export default function ClienteTable({ onEdit }) {
 
     const columns = useMemo(() => [
         {
-            field: 'sucursal',
+            field: 'sucursal_id',
             headerName: 'Sucursal',
             width: 160,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             valueGetter: (value, row) => row.sucursal?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
@@ -64,9 +77,7 @@ export default function ClienteTable({ onEdit }) {
             field: 'codigo',
             headerName: 'Código',
             width: 120,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => (
                 <Box sx={{
                     fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace',
@@ -77,21 +88,19 @@ export default function ClienteTable({ onEdit }) {
                 </Box>
             )
         },
-        { field: 'full_name', headerName: 'Nombre', flex: 1 },
-        { field: 'email', headerName: 'Email', flex: 1 },
+        { field: 'full_name', headerName: 'Nombre', flex: 1, filterable: false },
+        { field: 'email', headerName: 'Email', flex: 1, filterable: false },
         {
-            field: 'tipo_documento',
+            field: 'document_type',
             headerName: 'Tipo Documento',
             width: 160,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             valueGetter: (value, row) => row.tipo_documento?.name || '—',
             renderCell: (params) => (
                 <Chip label={params.value} color="secondary" size="small" />
             )
         },
-        { field: 'document', headerName: 'Documento', width: 140 },
+        { field: 'document', headerName: 'Documento', width: 140, filterable: false },
         {
             field: 'accion',
             headerName: 'Acción',
@@ -145,6 +154,9 @@ export default function ClienteTable({ onEdit }) {
                                 handlePageChange(newPage)
                             }
                         }}
+                        sortingMode="server"
+                        sortModel={sortModel}
+                        onSortModelChange={handleSortModelChange}
                         disableRowSelectionOnClick
                         columnBuffer={2}
                         columnThreshold={2}

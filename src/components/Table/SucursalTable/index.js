@@ -27,7 +27,22 @@ export default function SucursalTable({ onEdit }) {
     const [detailModalOpen, setDetailModalOpen] = useState(false)
     const [selectedSucursal, setSelectedSucursal] = useState(null)
 
-    const { data, count, isLoading, page, limit } = useSucursales()
+    const { data, count, isLoading, page, limit, orderBy, orderDir } = useSucursales()
+
+    const sortModel = useMemo(() => [{ field: orderBy, sort: orderDir }], [orderBy, orderDir])
+
+    const handleSortModelChange = useCallback((model) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (model.length > 0) {
+            params.set('orderBy', model[0].field)
+            params.set('orderDir', model[0].sort || 'asc')
+        } else {
+            params.set('orderBy', 'id')
+            params.set('orderDir', 'asc')
+        }
+        params.set('page', '1')
+        router.push(`?${params.toString()}`)
+    }, [searchParams, router])
 
     const handlePageChange = useCallback((newPage) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -99,30 +114,28 @@ export default function SucursalTable({ onEdit }) {
             field: 'id',
             headerName: 'ID',
             width: 80,
-            type: 'number'
+            type: 'number',
+            filterable: false,
         },
         {
             field: 'name',
             headerName: 'Nombre',
             flex: 1,
             minWidth: 150,
-            type: 'string'
+            filterable: false,
         },
         {
             field: 'address',
             headerName: 'Dirección',
             flex: 1.5,
             minWidth: 200,
-            type: 'string'
+            filterable: false,
         },
         {
             field: 'status',
             headerName: 'Estado',
             width: 140,
-            type: 'boolean',
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => (
                 <Chip
                     label={params.value ? 'Activo' : 'No activa'}
@@ -135,7 +148,8 @@ export default function SucursalTable({ onEdit }) {
             field: 'tasa',
             headerName: 'Tasa',
             width: 140,
-            type: 'number'
+            type: 'number',
+            filterable: false,
         },
         {
             field: 'accion',
@@ -202,6 +216,9 @@ export default function SucursalTable({ onEdit }) {
                                 handlePageChange(page)
                             }
                         }}
+                        sortingMode="server"
+                        sortModel={sortModel}
+                        onSortModelChange={handleSortModelChange}
                         disableRowSelectionOnClick
                         getRowId={(row) => row.id}
                         sx={dataGridStyles}

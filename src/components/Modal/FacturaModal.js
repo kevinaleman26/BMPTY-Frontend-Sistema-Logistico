@@ -17,6 +17,7 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import Divider from '@mui/material/Divider'
 import FormControlLabel from '@mui/material/FormControlLabel'
+import InputAdornment from '@mui/material/InputAdornment'
 import MenuItem from '@mui/material/MenuItem'
 import Snackbar from '@mui/material/Snackbar'
 import Switch from '@mui/material/Switch'
@@ -74,7 +75,12 @@ export default function FacturaModal({ open, onClose, factura }) {
             metodo_pago_id: factura?.metodo_pago?.id ?? 0,  // Por defecto "Ninguno" (ID = 0)
             paqueteList: factura?.factura_detalle?.map(item => flattenProveedorPaquetes(item)) || [],
             delivery_status: factura?.delivery_status ?? false,
-            payment_status: factura?.payment_status ?? false
+            payment_status: factura?.payment_status ?? false,
+            descuento_enabled: (factura?.descuento || 0) > 0,
+            descuento_porcentaje: factura?.subtotal > 0
+                ? parseFloat(((factura.descuento / factura.subtotal) * 100).toFixed(2))
+                : 0,
+            itbms_enabled: (factura?.impuestos || 0) > 0
         },
         enableReinitialize: true,
         validationSchema: Yup.object({
@@ -84,20 +90,15 @@ export default function FacturaModal({ open, onClose, factura }) {
         }),
         onSubmit: async (values, { resetForm }) => {
             try {
-                const trackingCodes = values.paqueteList.map(p => p.codigo)
-                if (!trackingCodes.length) {
-                    alert('Debes seleccionar al menos 1 paquete.')
-                    return
-                }
-
-                // Totales calculados (mantengo tu lógica actual)
-                const descuento = factura?.descuento || 0
-                const otros = factura?.otros || 0
-                const impuestos = factura?.impuestos || 0
-                const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail?.tarifa || 1)), 0)
-                const totalCalc = subtotalCalc - descuento + otros + impuestos
-
                 if (factura) {
+                    const baseSubtotal = factura.subtotal || 0
+                    const descuentoAmt = values.descuento_enabled
+                        ? baseSubtotal * (Number(values.descuento_porcentaje) / 100)
+                        : 0
+                    const itbmsAmt = values.itbms_enabled ? baseSubtotal * 0.07 : 0
+                    const otrosAmt = factura.otros || 0
+                    const totalCalc = baseSubtotal - descuentoAmt + otrosAmt + itbmsAmt
+
                     const updatePayload = {
                         id: factura.id,
                         prevDeliveryStatus: factura.delivery_status,
@@ -106,7 +107,10 @@ export default function FacturaModal({ open, onClose, factura }) {
                         cliente_id: values.cliente_id,
                         metodo_pago_id: values.metodo_pago_id,
                         delivery_status: values.delivery_status,
-                        payment_status: values.payment_status
+                        payment_status: values.payment_status,
+                        descuento: descuentoAmt,
+                        impuestos: itbmsAmt,
+                        total: totalCalc
                     }
 
                     // If marking as delivered, add operator
@@ -116,6 +120,19 @@ export default function FacturaModal({ open, onClose, factura }) {
 
                     await updateFactura.mutateAsync(updatePayload)
                 } else {
+                    const trackingCodes = values.paqueteList.map(p => p.codigo)
+                    if (!trackingCodes.length) {
+                        alert('Debes seleccionar al menos 1 paquete.')
+                        return
+                    }
+
+                    // Totales calculados
+                    const descuento = factura?.descuento || 0
+                    const otros = factura?.otros || 0
+                    const impuestos = factura?.impuestos || 0
+                    const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail?.tarifa || 1)), 0)
+                    const totalCalc = subtotalCalc - descuento + otros + impuestos
+
                     await createFactura.mutateAsync({
                         sucursal_id: values.sucursal_id,
                         cliente_id: values.cliente_id,
@@ -173,10 +190,21 @@ export default function FacturaModal({ open, onClose, factura }) {
         return formik.values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail.tarifa || 1)), 0)
     }, [formik.values.paqueteList, clientDetail])
 
-    const descuento = factura?.descuento || 0
     const otros = factura?.otros || 0
-    const impuestos = factura?.impuestos || 0
-    const total = useMemo(() => subtotal - descuento + otros + impuestos, [subtotal, descuento, otros, impuestos])
+
+    const descuentoAmount = useMemo(() => {
+        if (!formik.values.descuento_enabled) return 0
+        const base = subtotal > 0 ? subtotal : (factura?.subtotal || 0)
+        return base * (Number(formik.values.descuento_porcentaje) / 100)
+    }, [formik.values.descuento_enabled, formik.values.descuento_porcentaje, subtotal, factura])
+
+    const itbmsAmount = useMemo(() => {
+        if (!formik.values.itbms_enabled) return 0
+        const base = subtotal > 0 ? subtotal : (factura?.subtotal || 0)
+        return base * 0.07
+    }, [formik.values.itbms_enabled, subtotal, factura])
+
+    const total = useMemo(() => subtotal - descuentoAmount + otros + itbmsAmount, [subtotal, descuentoAmount, otros, itbmsAmount])
 
     return (
         <Dialog open={open} onClose={handleModalClose} fullWidth maxWidth="lg" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
@@ -259,7 +287,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                         </TextField>
                     )}
 
-                    {/* Estados: solo visibles en modo edición */}
+                    {/* Estados y ajustes: solo visibles en modo edición */}
                     {factura && (
                         <>
                             <FormControlLabel
@@ -284,6 +312,51 @@ export default function FacturaModal({ open, onClose, factura }) {
                                     />
                                 }
                                 label="Estado del pago"
+                            />
+
+                            {/* Descuento */}
+                            <Box>
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            checked={formik.values.descuento_enabled}
+                                            onChange={(e) => {
+                                                formik.setFieldValue('descuento_enabled', e.target.checked)
+                                                if (!e.target.checked) formik.setFieldValue('descuento_porcentaje', 0)
+                                            }}
+                                            color="primary"
+                                        />
+                                    }
+                                    label="Aplicar descuento"
+                                />
+                                {formik.values.descuento_enabled && (
+                                    <TextField
+                                        label="Porcentaje de descuento"
+                                        name="descuento_porcentaje"
+                                        type="number"
+                                        value={formik.values.descuento_porcentaje}
+                                        onChange={formik.handleChange}
+                                        inputProps={{ min: 0, max: 100, step: 0.1 }}
+                                        fullWidth
+                                        size="small"
+                                        InputProps={{
+                                            endAdornment: <InputAdornment position="end">%</InputAdornment>
+                                        }}
+                                        sx={{ mt: 1 }}
+                                    />
+                                )}
+                            </Box>
+
+                            {/* ITBMS */}
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={formik.values.itbms_enabled}
+                                        onChange={(e) => formik.setFieldValue('itbms_enabled', e.target.checked)}
+                                        color="primary"
+                                    />
+                                }
+                                label="ITBMS (7%)"
                             />
                         </>
                     )}
@@ -330,14 +403,24 @@ export default function FacturaModal({ open, onClose, factura }) {
                             <Typography variant="body2">Subtotal</Typography>
                             <Typography variant="body2">${subtotal.toFixed(2)}</Typography>
 
-                            <Typography variant="body2">Descuento</Typography>
-                            <Typography variant="body2">${descuento.toFixed(2)}</Typography>
+                            <Typography variant="body2" sx={{ color: descuentoAmount > 0 ? '#f4b223' : 'text.secondary' }}>
+                                Descuento{formik.values.descuento_enabled && formik.values.descuento_porcentaje > 0
+                                    ? ` (${formik.values.descuento_porcentaje}%)`
+                                    : ''}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: descuentoAmount > 0 ? '#f4b223' : 'text.secondary' }}>
+                                -${descuentoAmount.toFixed(2)}
+                            </Typography>
 
                             <Typography variant="body2">Otros</Typography>
                             <Typography variant="body2">${otros.toFixed(2)}</Typography>
 
-                            <Typography variant="body2">Impuestos</Typography>
-                            <Typography variant="body2">${impuestos.toFixed(2)}</Typography>
+                            <Typography variant="body2" sx={{ color: itbmsAmount > 0 ? '#f4b223' : 'text.secondary' }}>
+                                ITBMS{formik.values.itbms_enabled ? ' (7%)' : ''}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: itbmsAmount > 0 ? '#f4b223' : 'text.secondary' }}>
+                                +${itbmsAmount.toFixed(2)}
+                            </Typography>
 
                             <Divider sx={{ gridColumn: '1 / -1', my: 1 }} />
                             <Typography variant="subtitle2">Total</Typography>

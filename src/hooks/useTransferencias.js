@@ -18,10 +18,12 @@ export const useTransferencias = () => {
     const receptor_sucursal = searchParams.get('receptor_sucursal') || ''
     const delivery_status = searchParams.get('delivery_status') || ''
     const payment_status = searchParams.get('payment_status') || ''
+    const orderBy = searchParams.get('orderBy') || 'created_at'
+    const orderDir = searchParams.get('orderDir') || 'desc'
 
     const offset = (page - 1) * limit
 
-    const queryKey = ['transferencias', { page, limit, factura_id, metodo_pago, emisor_sucursal, receptor_sucursal, delivery_status, payment_status }]
+    const queryKey = ['transferencias', { page, limit, factura_id, metodo_pago, emisor_sucursal, receptor_sucursal, delivery_status, payment_status, orderBy, orderDir }]
 
     const queryFn = async () => {
         // Obtener ID de la sucursal "ROBOT" para excluirla
@@ -75,6 +77,7 @@ export const useTransferencias = () => {
                     )
                 )
             `, { count: 'exact' })
+                .order(orderBy, { ascending: orderDir === 'asc' })
                 .range(offset, offset + limit - 1)
                 .or(`emisor_sucursal_id.eq.${session.sucursal.id},receptor_sucursal_id.eq.${session.sucursal.id}`)
         } else {
@@ -120,6 +123,7 @@ export const useTransferencias = () => {
                     )
                 )
             `, { count: 'exact' })
+                .order(orderBy, { ascending: orderDir === 'asc' })
                 .range(offset, offset + limit - 1)
         }
 
@@ -158,6 +162,8 @@ export const useTransferencias = () => {
         receptor_sucursal,
         delivery_status,
         payment_status,
+        orderBy,
+        orderDir,
         count: data?.count || 0
     }
 }

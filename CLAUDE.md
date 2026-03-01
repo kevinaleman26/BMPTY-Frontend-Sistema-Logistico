@@ -160,25 +160,50 @@ src/
 ### UI/Component Patterns
 
 1. **Tables**:
-   - Use MUI DataGrid with server-side pagination
+   - Use MUI DataGrid with server-side pagination, sorting, and filtering
    - Paired with filter components (`[Entity]Filters.js`)
-   - URL state management for filters via `useSearchParams` and `useRouter`
+   - URL state management for filters, page, and sort via `useSearchParams` and `useRouter`
    - Consistent dark theme styling (#111 background, #222 headers)
 
+   **MANDATORY: All tables MUST use server-side patterns**
+   Every new table must implement ALL of the following:
+   - `paginationMode="server"` — pagination handled in the hook via URL params
+   - `sortingMode="server"` + `sortModel` + `onSortModelChange` — sorting updates URL params, hook reads `orderBy`/`orderDir` from searchParams and applies `.order()` to the Supabase query
+   - All filters applied server-side in the hook (NOT in the component)
+   - `filterable: false` on all columns (prevents built-in filter UI that doesn't work server-side)
+   - Never use DataGrid's built-in client-side sort/filter
+
+   **Reference pattern (from FacturaTable/TransferenciaTable):**
+   ```javascript
+   // Hook: read orderBy/orderDir from URL params
+   const orderBy = searchParams.get('orderBy') || 'created_at'
+   const orderDir = searchParams.get('orderDir') || 'desc'
+   // Apply to Supabase query
+   .order(orderBy, { ascending: orderDir === 'asc' })
+
+   // Table component: derive sortModel from hook values
+   const sortModel = useMemo(() => [{ field: orderBy, sort: orderDir }], [orderBy, orderDir])
+   const handleSortModelChange = useCallback((model) => {
+       const params = new URLSearchParams(searchParams.toString())
+       params.set('orderBy', model[0]?.field || 'created_at')
+       params.set('orderDir', model[0]?.sort || 'desc')
+       params.set('page', '1')
+       router.push(`?${params.toString()}`)
+   }, [searchParams, router])
+   // DataGrid props:
+   // sortingMode="server" sortModel={sortModel} onSortModelChange={handleSortModelChange}
+   ```
+
    **CRITICAL: MUI DataGrid Column Configuration**
-   - **ALL columns with `renderCell` MUST include these properties:**
+   - **Non-sortable columns** (action buttons, computed/joined fields) MUST include:
      ```javascript
-     {
-         field: 'column_name',
-         headerName: 'Column Name',
-         sortable: false,          // REQUIRED
-         filterable: false,        // REQUIRED
-         disableColumnMenu: true,  // REQUIRED
-         renderCell: (params) => (...)
-     }
+     sortable: false,
+     filterable: false,
+     disableColumnMenu: true,
      ```
+   - **Sortable columns** with `renderCell` only need `filterable: false` (no `sortable: false`)
+   - **All columns** should have `filterable: false` to prevent the non-functional built-in filter UI
    - **Flex columns:** Always add `minWidth` to prevent collapsing (e.g., `flex: 1, minWidth: 150`)
-   - **Common use cases:** Status chips, action buttons, formatted dates, reference lookups
    - See detailed documentation in project memory: `mui-datagrid-patterns.md`
 
    **CRITICAL: Custom Checkbox Pattern**

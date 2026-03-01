@@ -16,14 +16,12 @@ export function Providers({ children }) {
       queries: {
         // Considerar datos frescos por 60 segundos
         staleTime: 60 * 1000,
-        // Mantener datos en cache por 5 minutos
-        cacheTime: 5 * 60 * 1000,
+        // Mantener datos en cache por 5 minutos (gcTime reemplaza cacheTime en React Query v5)
+        gcTime: 5 * 60 * 1000,
         // No refetch automático al volver a la pestaña (ahorra requests)
         refetchOnWindowFocus: false,
         // Solo 1 retry en caso de error (más rápido que 3 retries default)
         retry: 1,
-        // Mantener datos previos durante refetch (mejor UX)
-        keepPreviousData: true,
       },
     },
   }))

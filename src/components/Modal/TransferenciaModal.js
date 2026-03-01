@@ -63,12 +63,6 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
         }),
         onSubmit: async (values, { resetForm }) => {
             try {
-                // Validar que hay paquetes seleccionados
-                if (!values.paqueteList || values.paqueteList.length === 0) {
-                    setSnackbar({ open: true, message: 'Debes seleccionar al menos un paquete', severity: 'warning' })
-                    return
-                }
-
                 // Validar que emisor y receptor sean diferentes
                 if (values.emisor_sucursal_id === values.receptor_sucursal_id) {
                     setSnackbar({ open: true, message: 'La sucursal emisora y receptora deben ser diferentes', severity: 'error' })
@@ -93,6 +87,12 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                     })
                     setSnackbar({ open: true, message: 'Transferencia actualizada exitosamente', severity: 'success' })
                 } else {
+                    // Validar paquetes solo en modo creación
+                    if (!values.paqueteList || values.paqueteList.length === 0) {
+                        setSnackbar({ open: true, message: 'Debes seleccionar al menos un paquete', severity: 'warning' })
+                        return
+                    }
+
                     // When creating, add emisor operator and set defaults
                     payload.operador_emisor_id = session?.id
                     payload.delivery_status = false  // Siempre pendiente al crear

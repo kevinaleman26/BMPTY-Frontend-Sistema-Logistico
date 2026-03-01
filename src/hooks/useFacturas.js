@@ -19,9 +19,11 @@ export const useFacturas = () => {
     const delivery_status = searchParams.get('delivery_status') || ''
     const fecha_desde = searchParams.get('fecha_desde') || ''
     const fecha_hasta = searchParams.get('fecha_hasta') || ''
+    const orderBy = searchParams.get('orderBy') || 'created_at'
+    const orderDir = searchParams.get('orderDir') || 'desc'
 
     const offset = (page - 1) * limit
-    const queryKey = ['facturas', { page, limit, numero, payment_status, delivery_status, fecha_desde, fecha_hasta }]
+    const queryKey = ['facturas', { page, limit, numero, payment_status, delivery_status, fecha_desde, fecha_hasta, orderBy, orderDir }]
 
     const queryFn = async () => {
         let query = supabase
@@ -38,7 +40,7 @@ export const useFacturas = () => {
                 created_at,
                 sucursal:sucursal_id ( id, name, ruc, address, razon_social, telefono, email ),
                 metodo_pago:metodo_pago ( id, name ),
-                cliente:cliente_id ( id, full_name, email, tarifa ),
+                cliente:cliente_id ( id, full_name, email, tarifa, phone, codigo, sucursal:sucursal_id(id, name) ),
                 factura_detalle (
                     id,
                     paquete_id,
@@ -47,7 +49,7 @@ export const useFacturas = () => {
                     )
                 )
             `, { count: 'exact' })
-            .order('created_at', { ascending: false })
+            .order(orderBy, { ascending: orderDir === 'asc' })
             .range(offset, offset + limit - 1)
 
         if (session.role.id !== 1) query = query.eq("sucursal_id", session.sucursal.id)
@@ -76,6 +78,8 @@ export const useFacturas = () => {
         delivery_status,
         fecha_desde,
         fecha_hasta,
+        orderBy,
+        orderDir,
         count: data?.count || 0
     }
 }

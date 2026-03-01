@@ -22,7 +22,22 @@ import { OptimizedChip, StatusChip, CurrencyCell, DateCell } from './OptimizedCe
 export default function PaqueteTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const { data, count, isLoading, page, limit } = usePaquetes()
+    const { data, count, isLoading, page, limit, orderBy, orderDir } = usePaquetes()
+
+    const sortModel = useMemo(() => [{ field: orderBy, sort: orderDir }], [orderBy, orderDir])
+
+    const handleSortModelChange = useCallback((model) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (model.length > 0) {
+            params.set('orderBy', model[0].field)
+            params.set('orderDir', model[0].sort || 'desc')
+        } else {
+            params.set('orderBy', 'codigo')
+            params.set('orderDir', 'desc')
+        }
+        params.set('page', '1')
+        router.push(`?${params.toString()}`)
+    }, [searchParams, router])
 
     const [detailModalOpen, setDetailModalOpen] = useState(false)
     const [editModalOpen, setEditModalOpen] = useState(false)
@@ -54,35 +69,35 @@ export default function PaqueteTable({ onEdit }) {
             headerName: 'Código',
             flex: 1,
             minWidth: 150,
+            filterable: false,
             renderCell: (params) => (
                 <Box sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 600 }}>
                     {params.value}
                 </Box>
             )
         },
-        { field: 'tipo', headerName: 'Tipo', width: 120 },
+        { field: 'tipo', headerName: 'Tipo', width: 120, filterable: false },
         {
             field: 'peso',
             headerName: 'Peso (kg)',
             type: 'number',
             width: 120,
+            filterable: false,
             renderCell: (params) => (
                 <Box sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 600 }}>
                     {params.value}
                 </Box>
             )
         },
-        { field: 'largo', headerName: 'Largo (cm)', type: 'number', width: 100 },
-        { field: 'alto', headerName: 'Alto (cm)', type: 'number', width: 100 },
-        { field: 'ancho', headerName: 'Ancho (cm)', type: 'number', width: 100 },
+        { field: 'largo', headerName: 'Largo (cm)', type: 'number', width: 100, filterable: false },
+        { field: 'alto', headerName: 'Alto (cm)', type: 'number', width: 100, filterable: false },
+        { field: 'ancho', headerName: 'Ancho (cm)', type: 'number', width: 100, filterable: false },
         {
             field: 'precio',
             headerName: 'Precio',
             type: 'number',
             width: 120,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => (
                 <Box sx={{ fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 600, color: tokens.accent.primary }}>
                     ${params.value?.toFixed(2)}
@@ -191,6 +206,9 @@ export default function PaqueteTable({ onEdit }) {
                             pageSize: limit
                         }}
                         onPaginationModelChange={handlePaginationChange}
+                        sortingMode="server"
+                        sortModel={sortModel}
+                        onSortModelChange={handleSortModelChange}
                         disableRowSelectionOnClick
                         sx={dataGridStyles}
         // ⚡ Performance optimizations

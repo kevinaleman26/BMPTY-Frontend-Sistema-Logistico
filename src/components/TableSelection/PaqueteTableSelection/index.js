@@ -15,16 +15,15 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
 import { useQuery } from '@tanstack/react-query'
-import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SearchIcon } from '@/components/Icons'
 
 
 export default function PaqueteTableSelection({ formik }) {
-    const router = useRouter()
-    const searchParams = useSearchParams()
     const { session } = useSession()
-    const { data, count, isLoading, page, limit } = usePaquetes({ soloDisponibles: true })
+    const [localPage, setLocalPage] = useState(1)
+    const [localLimit, setLocalLimit] = useState(10)
+    const { data, count, isLoading, page, limit } = usePaquetes({ soloDisponibles: true, localPage, localLimit })
 
     const [initDT, setInitDt] = useState(() =>
         Array.isArray(formik?.values?.paqueteList)
@@ -140,34 +139,33 @@ export default function PaqueteTableSelection({ formik }) {
                 return
             }
 
-            // Verificar disponibilidad: no facturado y no en transferencia activa
-            const [{ data: facturaCheck }, activasResult] = await Promise.all([
-                supabase
-                    .from('factura_detalle')
-                    .select('paquete_id')
-                    .eq('paquete_id', matchingPackage.codigo)
-                    .maybeSingle(),
-                supabase
-                    .from('transferencia_sucursal')
-                    .select('id')
-                    .eq('emisor_sucursal_id', session?.sucursal?.id)
-                    .eq('delivery_status', false)
-            ])
+            // Verificar disponibilidad: no facturado y no en transferencia activa (cualquier sucursal)
+            const { data: facturaCheck } = await supabase
+                .from('factura_detalle')
+                .select('paquete_id')
+                .eq('paquete_id', matchingPackage.codigo)
+                .maybeSingle()
 
             if (facturaCheck) {
                 showNotification('Este paquete ya fue facturado y no está disponible', 'error')
                 return
             }
 
-            if (activasResult.data?.length > 0) {
-                const { data: transitCheck } = await supabase
-                    .from('solicitud_paquete')
-                    .select('paquete_id')
-                    .eq('paquete_id', matchingPackage.codigo)
-                    .in('transferencia_id', activasResult.data.map(t => t.id))
+            // Buscar si el paquete está en alguna transferencia aún no entregada (global)
+            const { data: solicitudes } = await supabase
+                .from('solicitud_paquete')
+                .select('transferencia_id')
+                .eq('paquete_id', matchingPackage.codigo)
+
+            if (solicitudes?.length > 0) {
+                const { data: activeTransfer } = await supabase
+                    .from('transferencia_sucursal')
+                    .select('id')
+                    .in('id', solicitudes.map(s => s.transferencia_id))
+                    .eq('delivery_status', false)
                     .maybeSingle()
 
-                if (transitCheck) {
+                if (activeTransfer) {
                     showNotification('Este paquete ya está en una transferencia activa', 'error')
                     return
                 }
@@ -198,7 +196,9 @@ export default function PaqueteTableSelection({ formik }) {
     }, [handleManualSearch])
 
     // Actualizar formik cuando cambia la selección
+    // En modo edición (initDT.length > 0), no sobreescribir el paqueteList original
     useEffect(() => {
+        if (initDT.length > 0) return
         if (selectedRows?.length > 0) {
             formik.setFieldValue('paqueteList', selectedRows)
         } else {
@@ -332,10 +332,8 @@ export default function PaqueteTableSelection({ formik }) {
                         pageSize: limit
                     }}
                     onPaginationModelChange={({ page: newPage, pageSize: newPageSize }) => {
-                        const params = new URLSearchParams(searchParams.toString())
-                        params.set('page', String(newPage + 1))
-                        params.set('limit', String(newPageSize))
-                        router.push(`?${params.toString()}`)
+                        setLocalPage(newPage + 1)
+                        setLocalLimit(newPageSize)
                     }}
                     disableRowSelectionOnClick
                     sx={{

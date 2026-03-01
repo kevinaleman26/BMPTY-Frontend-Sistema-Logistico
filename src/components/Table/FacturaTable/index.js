@@ -20,9 +20,25 @@ export default function FacturaTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const { session } = useSession()
-    const { data, count, isLoading, page, limit } = useFacturas()
+    const { data, count, isLoading, page, limit, orderBy, orderDir } = useFacturas()
     const { bulkUpdateFacturas } = useMutateFactura()
     const [selectedRows, setSelectedRows] = useState([])
+
+    const sortModel = useMemo(() => [{ field: orderBy, sort: orderDir }], [orderBy, orderDir])
+
+    const handleSortModelChange = useCallback((model) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (model.length > 0) {
+            params.set('orderBy', model[0].field)
+            params.set('orderDir', model[0].sort || 'asc')
+        } else {
+            params.set('orderBy', 'created_at')
+            params.set('orderDir', 'desc')
+        }
+        params.set('page', '1')
+        setSelectedRows([])
+        router.push(`?${params.toString()}`)
+    }, [searchParams, router])
 
     const rows = data?.data || []
 
@@ -93,38 +109,32 @@ export default function FacturaTable({ onEdit }) {
                 )
             }
         },
-        { field: 'id', headerName: 'Número', width: 80 },
+        { field: 'id', headerName: 'Número', width: 80, filterable: false },
         {
-            field: 'cliente',
+            field: 'cliente_id',
             headerName: 'Cliente',
             flex: 1,
             minWidth: 150,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             valueGetter: (value, row) =>
                 row.cliente?.full_name || row.cliente?.email || '—',
             renderCell: (params) => params.value
         },
         {
-            field: 'sucursal',
+            field: 'sucursal_id',
             headerName: 'Sucursal',
             flex: 1,
             minWidth: 160,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             valueGetter: (value, row) => row.sucursal?.name || '—',
             renderCell: (params) => <OptimizedChip label={params.value} />
         },
         {
-            field: 'metodo_pago',
+            field: 'metodo_pago_id',
             headerName: 'Método de pago',
             flex: 1,
             minWidth: 150,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             valueGetter: (value, row) => row.metodo_pago?.name || '—',
             renderCell: (params) => <OptimizedChip label={params.value} />
         },
@@ -133,9 +143,7 @@ export default function FacturaTable({ onEdit }) {
             headerName: 'Estado Entrega',
             flex: 1,
             minWidth: 140,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => (
                 <StatusChip
                     value={params.value}
@@ -149,9 +157,7 @@ export default function FacturaTable({ onEdit }) {
             headerName: 'Estado Pago',
             flex: 1,
             minWidth: 140,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => (
                 <StatusChip
                     value={params.value}
@@ -165,9 +171,7 @@ export default function FacturaTable({ onEdit }) {
             headerName: 'Total',
             flex: 1,
             minWidth: 120,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => <CurrencyCell value={params.value} />
         },
         {
@@ -175,9 +179,7 @@ export default function FacturaTable({ onEdit }) {
             headerName: 'Fecha',
             flex: 1,
             minWidth: 180,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             renderCell: (params) => <DateCell value={params.value} />
         },
         {
@@ -299,6 +301,9 @@ export default function FacturaTable({ onEdit }) {
                                 handlePageChange(newPage)
                             }
                         }}
+                        sortingMode="server"
+                        sortModel={sortModel}
+                        onSortModelChange={handleSortModelChange}
                         disableRowSelectionOnClick
                         columnBuffer={2}
                         columnThreshold={2}

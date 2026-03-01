@@ -5,6 +5,8 @@ import { useIdleTimeout } from '@/hooks/useIdleTimeout'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import IdleWarningModal from '@/components/Modal/IdleWarningModal'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
 
 export default function ProtectedRoute({ children }) {
     const { session, loading } = useSession()
@@ -50,7 +52,24 @@ export default function ProtectedRoute({ children }) {
         enabled: !!session && !showWarning,
     })
 
-    if (!mounted || loading || !session) return null
+    // Prevents hydration mismatch (server always renders null on first pass)
+    if (!mounted) return null
+
+    // Show loading screen while session is being verified (e.g. token refresh on page reload)
+    if (loading) return (
+        <Box sx={{
+            minHeight: '100vh',
+            backgroundColor: '#000',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+        }}>
+            <CircularProgress sx={{ color: '#f4b223' }} />
+        </Box>
+    )
+
+    // No session → redirect to login (via useEffect above)
+    if (!session) return null
 
     return (
         <>

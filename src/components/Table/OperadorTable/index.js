@@ -17,7 +17,22 @@ import { EditIcon } from '@/components/Icons'
 export default function OperadorTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
-    const { data, count, isLoading, page, limit } = useOperadores()
+    const { data, count, isLoading, page, limit, orderBy, orderDir } = useOperadores()
+
+    const sortModel = useMemo(() => [{ field: orderBy, sort: orderDir }], [orderBy, orderDir])
+
+    const handleSortModelChange = useCallback((model) => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (model.length > 0) {
+            params.set('orderBy', model[0].field)
+            params.set('orderDir', model[0].sort || 'asc')
+        } else {
+            params.set('orderBy', 'full_name')
+            params.set('orderDir', 'asc')
+        }
+        params.set('page', '1')
+        router.push(`?${params.toString()}`)
+    }, [searchParams, router])
 
     const handlePageChange = useCallback((newPage) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -33,15 +48,13 @@ export default function OperadorTable({ onEdit }) {
     }, [searchParams, router])
 
     const columns = useMemo(() => [
-        { field: 'full_name', headerName: 'Nombre', flex: 1 },
-        { field: 'email', headerName: 'Email', flex: 1 },
+        { field: 'full_name', headerName: 'Nombre', flex: 1, filterable: false },
+        { field: 'email', headerName: 'Email', flex: 1, filterable: false },
         {
-            field: 'role',
+            field: 'role_id',
             headerName: 'Rol',
             flex: 1,
-            sortable: false,
             filterable: false,
-            disableColumnMenu: true,
             valueGetter: (value, row) => row.role?.name || 'Sin rol',
             renderCell: (params) => (
                 <Chip label={params.value} color="primary" size="small" />
@@ -88,6 +101,9 @@ export default function OperadorTable({ onEdit }) {
                             handlePageChange(page)
                             handlePageSizeChange(pageSize)
                         }}
+                        sortingMode="server"
+                        sortModel={sortModel}
+                        onSortModelChange={handleSortModelChange}
                         disableRowSelectionOnClick
                         sx={dataGridStyles}
                     />
