@@ -86,14 +86,20 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
     const filteredRows = useMemo(() => {
         if (initDT.length > 0) return initRows
 
-        if (!search.trim()) return baseRows
+        // Paquetes ya seleccionados siempre al inicio; el resto viene del servidor.
+        // En modo edición los seleccionados están excluidos de baseRows (soloDisponibles),
+        // por lo que el Set evita duplicados sin coste adicional.
+        const selectedCodigos = new Set(selectedRows.map(r => r.codigo))
+        const unselectedBase = baseRows.filter(r => !selectedCodigos.has(r.codigo))
+
+        if (!search.trim()) return [...selectedRows, ...unselectedBase]
 
         const lower = search.toLowerCase()
-        const filtrados = baseRows.filter(row =>
+        const filtrados = unselectedBase.filter(row =>
             Object.values(row).some(value => String(value).toLowerCase().includes(lower))
         )
-        const combined = [...selectedRows, ...filtrados]
-        return Array.from(new Map(combined.map(item => [item.codigo, item])).values())
+        // Seleccionados siempre visibles arriba aunque no coincidan con la búsqueda
+        return [...selectedRows, ...filtrados]
     }, [initDT, initRows, baseRows, search, selectedRows])
 
     // Handlers de selección (después de filteredRows)
