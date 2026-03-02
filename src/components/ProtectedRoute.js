@@ -1,17 +1,44 @@
 'use client'
 
 import { useSession } from '@/hooks/useSession'
-import { useIdleTimeout } from '@/hooks/useIdleTimeout'
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
-import IdleWarningModal from '@/components/Modal/IdleWarningModal'
+// ── Idle timeout deshabilitado ────────────────────────────────────────────────
+// import { useIdleTimeout } from '@/hooks/useIdleTimeout'
+// import IdleWarningModal from '@/components/Modal/IdleWarningModal'
+// ─────────────────────────────────────────────────────────────────────────────
+import { useEffect, useState } from 'react'
 import Box from '@mui/material/Box'
 import CircularProgress from '@mui/material/CircularProgress'
 
 export default function ProtectedRoute({ children }) {
     const { session, loading } = useSession()
     const [mounted, setMounted] = useState(false)
-    const [showWarning, setShowWarning] = useState(false)
+
+    // ── Idle timeout deshabilitado ────────────────────────────────────────────
+    // const [showWarning, setShowWarning] = useState(false)
+    //
+    // const handleLogout = useCallback(async () => {
+    //     setShowWarning(false)
+    //     try {
+    //         await supabase.auth.signOut()
+    //     } finally {
+    //         window.location.href = '/login'
+    //     }
+    // }, [])
+    //
+    // const handleWarn = useCallback(() => {
+    //     setShowWarning(true)
+    // }, [])
+    //
+    // const handleStay = useCallback(() => {
+    //     setShowWarning(false)
+    // }, [])
+    //
+    // useIdleTimeout({
+    //     onWarn: handleWarn,
+    //     onLogout: handleLogout,
+    //     enabled: !!session && !showWarning,
+    // })
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Ensure server and client both render null on the first pass.
     // Without this, SPA navigations cause a hydration mismatch because
@@ -26,31 +53,6 @@ export default function ProtectedRoute({ children }) {
             window.location.replace('/login')
         }
     }, [mounted, loading, session])
-
-    const handleLogout = useCallback(async () => {
-        setShowWarning(false)
-        try {
-            await supabase.auth.signOut()
-        } finally {
-            window.location.href = '/login'
-        }
-    }, [])
-
-    const handleWarn = useCallback(() => {
-        setShowWarning(true)
-    }, [])
-
-    const handleStay = useCallback(() => {
-        setShowWarning(false)
-        // resetTimers se llama automáticamente porque enabled vuelve a true
-    }, [])
-
-    // Solo activo cuando hay sesión y el modal NO está visible
-    useIdleTimeout({
-        onWarn: handleWarn,
-        onLogout: handleLogout,
-        enabled: !!session && !showWarning,
-    })
 
     // Prevents hydration mismatch (server always renders null on first pass)
     if (!mounted) return null
@@ -74,11 +76,13 @@ export default function ProtectedRoute({ children }) {
     return (
         <>
             {children}
+            {/* ── Idle warning modal deshabilitado ──────────────────────────────
             <IdleWarningModal
                 open={showWarning}
                 onStay={handleStay}
                 onLogout={handleLogout}
             />
+            ──────────────────────────────────────────────────────────────── */}
         </>
     )
 }
