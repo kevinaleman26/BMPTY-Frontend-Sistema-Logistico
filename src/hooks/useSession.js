@@ -65,21 +65,57 @@ export function useSession() {
     })
 
     useEffect(() => {
+        // ── Race condition guard ──────────────────────────────────────────────
+        // Supabase sometimes fires SIGNED_OUT immediately before TOKEN_REFRESHED
+        // during its background auto-refresh cycle. Without debouncing, the brief
+        // SIGNED_OUT would clear the session → all queries become disabled →
+        // infinite loading spinner until the user reloads.
+        //
+        // Fix: delay the session clear by 1.5 s. If TOKEN_REFRESHED arrives
+        // within that window we cancel the clear and recover transparently.
+        let signOutTimer = null
+        let hadSignOut = false
+        // ─────────────────────────────────────────────────────────────────────
+
         const { data: listener } = supabase.auth.onAuthStateChange(async (event, authSession) => {
             if (event === 'SIGNED_OUT') {
-                // Set null directly — synchronous, no getSession() call, no lock contention
-                queryClient.setQueryData(['session'], null)
+                hadSignOut = true
+                // Defer — a TOKEN_REFRESHED may follow within milliseconds
+                signOutTimer = setTimeout(() => {
+                    if (hadSignOut) queryClient.setQueryData(['session'], null)
+                }, 1500)
+
             } else if (
                 (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
                 authSession?.user?.id
             ) {
-                // Use userId from the event — avoids calling getSession() inside the auth lock
+                // Cancel any pending sign-out from the debounce above
+                if (signOutTimer) {
+                    clearTimeout(signOutTimer)
+                    signOutTimer = null
+                }
+                const wasSignedOut = hadSignOut
+                hadSignOut = false
+
+                // Use userId from the event — avoids calling getSession() inside
+                // the auth lock (which would deadlock on concurrent signOut calls)
                 const userData = await buildUserData(authSession.user.id)
                 queryClient.setQueryData(['session'], userData)
+
+                // If we recovered from a SIGNED_OUT, force-refetch all data
+                // queries so any that failed with an expired JWT get fresh data
+                if (wasSignedOut) {
+                    queryClient.invalidateQueries({
+                        predicate: (q) => q.queryKey[0] !== 'session'
+                    })
+                }
             }
         })
 
-        return () => listener.subscription.unsubscribe()
+        return () => {
+            if (signOutTimer) clearTimeout(signOutTimer)
+            listener.subscription.unsubscribe()
+        }
     }, [queryClient])
 
     return { session: session ?? null, loading }

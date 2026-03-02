@@ -5,23 +5,30 @@ import CssBaseline from '@mui/material/CssBaseline'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
-import { muiThemeOverrides, tokens } from '@/styles/tokens'
+import { muiThemeOverrides } from '@/styles/tokens'
 
 const theme = createTheme(muiThemeOverrides)
 
 export function Providers({ children }) {
-  // ⚡ Configuración optimizada de QueryClient para mejor performance
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        // Considerar datos frescos por 60 segundos
+        // Data is considered fresh for 60 seconds
         staleTime: 60 * 1000,
-        // Mantener datos en cache por 5 minutos (gcTime reemplaza cacheTime en React Query v5)
-        gcTime: 5 * 60 * 1000,
-        // No refetch automático al volver a la pestaña (ahorra requests)
-        refetchOnWindowFocus: false,
-        // Solo 1 retry en caso de error (más rápido que 3 retries default)
-        retry: 1,
+        // Keep inactive cache entries for 30 minutes (was 5 min).
+        // Longer window prevents data disappearing while navigating between
+        // modules, which caused infinite loading after short periods of inactivity.
+        gcTime: 30 * 60 * 1000,
+        // Automatically refetch stale data when the user returns to the tab.
+        // This was disabled for performance but caused the "stuck loading" issue
+        // after inactivity — data had been garbage-collected and nothing triggered
+        // a re-fetch when the user came back.
+        refetchOnWindowFocus: true,
+        // Refetch when network reconnects after going offline
+        refetchOnReconnect: true,
+        // 2 retries with exponential backoff for transient failures
+        retry: 2,
+        retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
       },
     },
   }))
