@@ -77,7 +77,18 @@ export function useSession() {
         let hadSignOut = false
         // ─────────────────────────────────────────────────────────────────────
 
-        const { data: listener } = supabase.auth.onAuthStateChange(async (event, authSession) => {
+        // ── Auth lock deadlock prevention ────────────────────────────────────
+        // The callback MUST be synchronous (no async/await). Supabase v2 holds
+        // the auth lock for the entire duration of an async callback. Inside
+        // buildUserData, supabase.from() internally calls getSession() to inject
+        // the JWT — which also needs the auth lock — causing an infinite deadlock:
+        //   lock held by callback → supabase.from() → getSession() → waits for lock
+        //
+        // Fix: return synchronously so the lock is released immediately, then
+        // run buildUserData in a fresh event-loop task (setTimeout 0) where the
+        // auth lock is no longer held.
+        // ─────────────────────────────────────────────────────────────────────
+        const { data: listener } = supabase.auth.onAuthStateChange((event, authSession) => {
             if (event === 'SIGNED_OUT') {
                 hadSignOut = true
                 // Defer — a TOKEN_REFRESHED may follow within milliseconds
@@ -97,18 +108,25 @@ export function useSession() {
                 const wasSignedOut = hadSignOut
                 hadSignOut = false
 
-                // Use userId from the event — avoids calling getSession() inside
-                // the auth lock (which would deadlock on concurrent signOut calls)
-                const userData = await buildUserData(authSession.user.id)
-                queryClient.setQueryData(['session'], userData)
+                // Capture userId now (authSession may not be available later)
+                const userId = authSession.user.id
 
-                // If we recovered from a SIGNED_OUT, force-refetch all data
-                // queries so any that failed with an expired JWT get fresh data
-                if (wasSignedOut) {
-                    queryClient.invalidateQueries({
-                        predicate: (q) => q.queryKey[0] !== 'session'
-                    })
-                }
+                // Defer DB queries to AFTER the auth lock is released.
+                // Using setTimeout(0) schedules this in a new event-loop task,
+                // outside the auth lock scope, so supabase.from() can call
+                // getSession() freely without deadlocking.
+                setTimeout(async () => {
+                    const userData = await buildUserData(userId)
+                    queryClient.setQueryData(['session'], userData)
+
+                    // If we recovered from a SIGNED_OUT, force-refetch all data
+                    // queries so any that failed with an expired JWT get fresh data
+                    if (wasSignedOut) {
+                        queryClient.invalidateQueries({
+                            predicate: (q) => q.queryKey[0] !== 'session'
+                        })
+                    }
+                }, 0)
             }
         })
 
