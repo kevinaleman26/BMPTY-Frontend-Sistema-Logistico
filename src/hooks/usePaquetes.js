@@ -31,14 +31,12 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
             .select('id')
             .eq('receptor_sucursal_id', session.sucursal.id)
 
-        // En modo soloDisponibles (selección para factura/transferencia), solo
-        // incluir transferencias ya entregadas (delivery_status = true).
-        // Los paquetes en tránsito aún no han llegado a esta sucursal y no
-        // deben poder seleccionarse. Las transferencias canceladas eliminan sus
-        // solicitud_paquete al cancelarse, por lo que no aparecen aquí.
-        if (soloDisponibles) {
-            tsQuery = tsQuery.eq('delivery_status', true)
-        }
+        // Transferencias canceladas eliminan sus solicitud_paquete al cancelarse,
+        // por lo que no aparecen aquí. Incluimos transferencias entregadas Y
+        // en tránsito: el equipo puede facturar/transferir paquetes recibidos
+        // antes de marcar formalmente como entregada la transferencia entrante.
+        // La exclusión de transferencias SALIENTES activas (más abajo) previene
+        // el doble-envío de paquetes que ya están en camino a otra sucursal.
 
         if (factura_id) tsQuery = tsQuery.ilike('factura_id', `%${factura_id}%`)
 
