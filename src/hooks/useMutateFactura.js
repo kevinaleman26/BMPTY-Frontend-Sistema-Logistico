@@ -49,7 +49,6 @@ export function useMutateFactura() {
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['facturas'] })
-            // Refresh available packages so just-invoiced packages disappear from selection table
             qc.invalidateQueries({ queryKey: ['paquetes'] })
         }
     })
@@ -59,6 +58,7 @@ export function useMutateFactura() {
             id,
             prevDeliveryStatus,
             prevPaymentStatus,
+            trackingCodes,   // optional: new package list when editing packages
             ...changes
         }) => {
             const payload = { ...changes }
@@ -82,6 +82,35 @@ export function useMutateFactura() {
 
             const { error } = await supabase.from('factura').update(payload).eq('id', id)
             if (error) throw error
+
+            // ── Update package list (diff-based to avoid duplicate FACTURADO events) ──
+            if (trackingCodes !== undefined) {
+                const { data: currentDetails } = await supabase
+                    .from('factura_detalle')
+                    .select('paquete_id')
+                    .eq('factura_id', id)
+
+                const currentCodes = new Set((currentDetails ?? []).map(d => d.paquete_id))
+                const newCodes = new Set(trackingCodes)
+
+                const toRemove = [...currentCodes].filter(c => !newCodes.has(c))
+                const toAdd = [...newCodes].filter(c => !currentCodes.has(c))
+
+                if (toRemove.length > 0) {
+                    const { error: delErr } = await supabase
+                        .from('factura_detalle')
+                        .delete()
+                        .eq('factura_id', id)
+                        .in('paquete_id', toRemove)
+                    if (delErr) throw delErr
+                }
+
+                if (toAdd.length > 0) {
+                    const rows = toAdd.map(code => ({ factura_id: id, paquete_id: code }))
+                    const { error: insErr } = await supabase.from('factura_detalle').insert(rows)
+                    if (insErr) throw insErr
+                }
+            }
         },
 
         // ─── Optimistic Update ───────────────────────────────────────────────────
@@ -116,6 +145,7 @@ export function useMutateFactura() {
         // Always sync with server after mutation (success or failure)
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ['facturas'] })
+            qc.invalidateQueries({ queryKey: ['paquetes'] })
         }
     })
 

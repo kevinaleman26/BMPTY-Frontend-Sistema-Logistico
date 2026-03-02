@@ -7,6 +7,7 @@ import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Checkbox from '@mui/material/Checkbox'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
@@ -19,18 +20,43 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SearchIcon } from '@/components/Icons'
 
 
-export default function PaqueteTableSelection({ formik }) {
+export default function PaqueteTableSelection({ formik, editable = true }) {
     const { session } = useSession()
     const [localPage, setLocalPage] = useState(1)
     const [localLimit, setLocalLimit] = useState(10)
     const { data, count, isLoading, page, limit } = usePaquetes({ soloDisponibles: true, localPage, localLimit })
 
+    // initDT: only used in read-only mode (editable=false) to fetch and display
+    // current packages as a non-interactive list.
     const [initDT, setInitDt] = useState(() =>
-        Array.isArray(formik?.values?.paqueteList)
-            ? formik.values.paqueteList.map(item => item.paquete_id)
+        !editable && Array.isArray(formik?.values?.paqueteList)
+            ? formik.values.paqueteList.map(item => item.paquete_id || item.codigo)
             : []
     )
-    const [selectedRows, setSelectedRows] = useState([])
+
+    // selectedRows: pre-populated in editable edit mode from the existing paqueteList.
+    // Items are normalized to the proveedor_paquetes shape so they're consistent
+    // with packages added via barcode scanner or DataGrid selection.
+    const [selectedRows, setSelectedRows] = useState(() => {
+        if (
+            editable &&
+            Array.isArray(formik?.values?.paqueteList) &&
+            formik.values.paqueteList.length > 0
+        ) {
+            return formik.values.paqueteList.map(item => ({
+                id: item.proveedor_id ?? item.id,
+                codigo: item.codigo,
+                tipo: item.tipo,
+                peso: item.peso,
+                precio: item.precio,
+                largo: item.largo,
+                alto: item.alto,
+                ancho: item.ancho,
+                volumen: item.volumen,
+            }))
+        }
+        return []
+    })
     const [search, setSearch] = useState('')
     const [barcodeInput, setBarcodeInput] = useState('')
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
@@ -220,7 +246,7 @@ export default function PaqueteTableSelection({ formik }) {
                     checked={filteredRows.length > 0 && selectedRows.length === filteredRows.length}
                     indeterminate={selectedRows.length > 0 && selectedRows.length < filteredRows.length}
                     onChange={handleSelectAll}
-                    disabled={initDT.length > 0}
+                    disabled={!editable}
                     sx={{ color: '#f4b223', '&.Mui-checked': { color: '#f4b223' } }}
                 />
             ),
@@ -230,7 +256,7 @@ export default function PaqueteTableSelection({ formik }) {
                     <Checkbox
                         checked={isSelected}
                         onChange={() => handleSelectOne(params.row)}
-                        disabled={initDT.length > 0}
+                        disabled={!editable}
                         sx={{ color: '#f4b223', '&.Mui-checked': { color: '#f4b223' } }}
                     />
                 )
@@ -293,22 +319,22 @@ export default function PaqueteTableSelection({ formik }) {
                             </Typography>
                         ) : (
                             selectedRows.map((item, idx) => (
-                                <Box
+                                <Chip
                                     key={idx}
+                                    label={item.codigo}
+                                    size="small"
+                                    onDelete={() => handleSelectOne(item)}
                                     sx={{
                                         backgroundColor: '#222',
                                         color: '#fff',
-                                        px: 1.5,
-                                        py: 0.5,
-                                        borderRadius: '12px',
-                                        fontSize: '0.8rem',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        border: '1px solid #444'
+                                        border: '1px solid #444',
+                                        fontFamily: 'monospace',
+                                        '& .MuiChip-deleteIcon': {
+                                            color: '#888',
+                                            '&:hover': { color: '#fff' }
+                                        }
                                     }}
-                                >
-                                    {item.codigo}
-                                </Box>
+                                />
                             ))
                         )}
                     </Box>

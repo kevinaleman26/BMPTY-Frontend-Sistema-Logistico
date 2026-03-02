@@ -91,7 +91,18 @@ export default function FacturaModal({ open, onClose, factura }) {
         onSubmit: async (values, { resetForm }) => {
             try {
                 if (factura) {
-                    const baseSubtotal = factura.subtotal || 0
+                    // Packages can only be modified when the invoice is not yet delivered nor paid
+                    const isEditable = !factura.delivery_status && !factura.payment_status
+
+                    // Recalculate subtotal from current package list when editable;
+                    // otherwise use the stored value to avoid drift
+                    const baseSubtotal = isEditable
+                        ? values.paqueteList.reduce(
+                            (acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail?.tarifa || 1)),
+                            0
+                          )
+                        : (factura.subtotal || 0)
+
                     const descuentoAmt = values.descuento_enabled
                         ? baseSubtotal * (Number(values.descuento_porcentaje) / 100)
                         : 0
@@ -110,7 +121,13 @@ export default function FacturaModal({ open, onClose, factura }) {
                         payment_status: values.payment_status,
                         descuento: descuentoAmt,
                         impuestos: itbmsAmt,
+                        subtotal: baseSubtotal,
                         total: totalCalc
+                    }
+
+                    // Include package list changes only when invoice is still editable
+                    if (isEditable) {
+                        updatePayload.trackingCodes = values.paqueteList.map(p => p.codigo)
                     }
 
                     // If marking as delivered, add operator
@@ -295,11 +312,17 @@ export default function FacturaModal({ open, onClose, factura }) {
                                     <Switch
                                         name="delivery_status"
                                         checked={formik.values.delivery_status}
+                                        // Blocked when invoice is paid — can't undo delivery if already paid
+                                        disabled={formik.values.payment_status === true}
                                         onChange={(e) => formik.setFieldValue('delivery_status', e.target.checked)}
                                         color="primary"
                                     />
                                 }
-                                label="Estado de entrega"
+                                label={
+                                    formik.values.payment_status
+                                        ? 'Estado de entrega (bloqueado — factura pagada)'
+                                        : 'Estado de entrega'
+                                }
                             />
 
                             <FormControlLabel
@@ -307,11 +330,17 @@ export default function FacturaModal({ open, onClose, factura }) {
                                     <Switch
                                         name="payment_status"
                                         checked={formik.values.payment_status}
+                                        // Once paid in the DB, payment cannot be reversed
+                                        disabled={factura?.payment_status === true}
                                         onChange={(e) => formik.setFieldValue('payment_status', e.target.checked)}
                                         color="primary"
                                     />
                                 }
-                                label="Estado del pago"
+                                label={
+                                    factura?.payment_status
+                                        ? 'Estado del pago (no reversible)'
+                                        : 'Estado del pago'
+                                }
                             />
 
                             {/* Descuento */}
@@ -380,7 +409,23 @@ export default function FacturaModal({ open, onClose, factura }) {
                                 <CircularProgress size={24} />
                             </Box>
                         ) : clientDetail ? (
-                            <PaqueteTableSelection formik={formik} />
+                            <>
+                                {factura && (factura.delivery_status || factura.payment_status) && (
+                                    <Alert severity="info" sx={{ mb: 1 }}>
+                                        Los paquetes no se pueden modificar porque la factura ya fue{' '}
+                                        {factura.delivery_status && factura.payment_status
+                                            ? 'entregada y pagada'
+                                            : factura.delivery_status
+                                                ? 'entregada'
+                                                : 'pagada'
+                                        }.
+                                    </Alert>
+                                )}
+                                <PaqueteTableSelection
+                                    formik={formik}
+                                    editable={!factura || (!factura.delivery_status && !factura.payment_status)}
+                                />
+                            </>
                         ) : (
                             <Box sx={{
                                 p: 3,
