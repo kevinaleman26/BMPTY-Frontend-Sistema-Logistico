@@ -31,6 +31,15 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
             .select('id')
             .eq('receptor_sucursal_id', session.sucursal.id)
 
+        // En modo soloDisponibles (selección para factura/transferencia), solo
+        // incluir transferencias ya entregadas (delivery_status = true).
+        // Los paquetes en tránsito aún no han llegado a esta sucursal y no
+        // deben poder seleccionarse. Las transferencias canceladas eliminan sus
+        // solicitud_paquete al cancelarse, por lo que no aparecen aquí.
+        if (soloDisponibles) {
+            tsQuery = tsQuery.eq('delivery_status', true)
+        }
+
         if (factura_id) tsQuery = tsQuery.ilike('factura_id', `%${factura_id}%`)
 
         // ─── PATH B: paquetes registrados directamente en esta sucursal ─────────
