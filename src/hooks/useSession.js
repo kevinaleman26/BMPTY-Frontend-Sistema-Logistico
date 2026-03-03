@@ -3,13 +3,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 const getClientInfo = async (id) => {
+    // maybeSingle() returns { data: null, error: null } for 0 rows (no PGRST116 error).
+    // This is expected when the user is an Operador (not in the cliente table).
     const { data: cliente, error } = await supabase
         .from('cliente')
         .select("*")
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
-    if (error) return null
+    if (error || !cliente) return null
 
     return {
         ...cliente,
@@ -18,13 +20,15 @@ const getClientInfo = async (id) => {
 }
 
 const getOperadorInfo = async (id) => {
+    // maybeSingle() returns { data: null, error: null } for 0 rows (no PGRST116 error).
+    // This is expected when the user is a Cliente (not in the operador table).
     const { data: operador, error } = await supabase
         .from('operador')
         .select("*, sucursal(id, name), role(id, name)")
         .eq('id', id)
-        .single()
+        .maybeSingle()
 
-    if (error) return null
+    if (error || !operador) return null
     return operador
 }
 

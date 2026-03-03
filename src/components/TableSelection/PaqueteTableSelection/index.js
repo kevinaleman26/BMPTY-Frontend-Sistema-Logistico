@@ -16,7 +16,7 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SearchIcon } from '@/components/Icons'
 
 
@@ -34,29 +34,51 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
             : []
     )
 
-    // selectedRows: pre-populated in editable edit mode from the existing paqueteList.
-    // Items are normalized to the proveedor_paquetes shape so they're consistent
-    // with packages added via barcode scanner or DataGrid selection.
-    const [selectedRows, setSelectedRows] = useState(() => {
-        if (
-            editable &&
-            Array.isArray(formik?.values?.paqueteList) &&
-            formik.values.paqueteList.length > 0
-        ) {
-            return formik.values.paqueteList.map(item => ({
-                id: item.proveedor_id ?? item.id,
-                codigo: item.codigo,
-                tipo: item.tipo,
-                peso: item.peso,
-                precio: item.precio,
-                largo: item.largo,
-                alto: item.alto,
-                ancho: item.ancho,
-                volumen: item.volumen,
-            }))
-        }
-        return []
+    // initialCodes: package codes already in the record being edited.
+    // Extracted once on mount; used to fetch full proveedor_paquetes data so that
+    // selected rows display all columns correctly. Works for both factura_detalle
+    // items (have .codigo) and solicitud_paquete items (have .paquete_id).
+    const [initialCodes] = useState(() => {
+        if (!editable || !Array.isArray(formik?.values?.paqueteList)) return []
+        return formik.values.paqueteList
+            .map(item => item.codigo ?? item.paquete_id)
+            .filter(Boolean)
     })
+
+    // Fetch complete proveedor_paquetes rows for the initial selection so that
+    // peso, tipo, precio and all other columns render correctly in the DataGrid.
+    const { data: initialPackageData } = useQuery({
+        queryKey: ['proveedor_paquetesInitSel', initialCodes],
+        enabled: initialCodes.length > 0,
+        staleTime: 60_000,
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('proveedor_paquetes')
+                .select('*')
+                .in('codigo', initialCodes)
+            if (error) throw error
+            return data ?? []
+        },
+    })
+
+    // selectedRowsReady: false while the initial fetch is in flight.
+    // Prevents the formik sync effect from writing [] to paqueteList before
+    // the initial packages are loaded (avoids a subtotal flash to $0).
+    const [selectedRowsReady, setSelectedRowsReady] = useState(() => initialCodes.length === 0)
+
+    // selectedRows: the user's current selection. Starts empty; populated from
+    // initialPackageData once it loads (edit mode) or stays empty (create mode).
+    const [selectedRows, setSelectedRows] = useState([])
+    const initializedRef = useRef(false)
+
+    // Populate selectedRows from the fetched initial data (editable edit mode only).
+    useEffect(() => {
+        if (initializedRef.current || initialPackageData === undefined) return
+        initializedRef.current = true
+        setSelectedRows(initialPackageData ?? [])
+        setSelectedRowsReady(true)
+    }, [initialPackageData])
+
     const [search, setSearch] = useState('')
     const [barcodeInput, setBarcodeInput] = useState('')
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
@@ -227,16 +249,18 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
         }
     }, [handleManualSearch])
 
-    // Actualizar formik cuando cambia la selección
-    // En modo edición (initDT.length > 0), no sobreescribir el paqueteList original
+    // Actualizar formik cuando cambia la selección.
+    // Skip while initial data is still loading to avoid a transient paqueteList=[]
+    // that would flash the subtotal to $0 before real packages are loaded.
     useEffect(() => {
-        if (initDT.length > 0) return
+        if (initDT.length > 0) return       // read-only mode: never overwrite
+        if (!selectedRowsReady) return       // still fetching initial selection
         if (selectedRows?.length > 0) {
             formik.setFieldValue('paqueteList', selectedRows)
         } else {
             formik.setFieldValue('paqueteList', [])
         }
-    }, [selectedRows])
+    }, [selectedRows, selectedRowsReady])
 
     // Columnas con custom checkbox
     const columns = useMemo(() => [
