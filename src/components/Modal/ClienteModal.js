@@ -1,6 +1,7 @@
 'use client'
 
 import { useMutateCliente } from '@/hooks/useMutateCliente'
+import { useSession } from '@/hooks/useSession'
 import { useSucursal } from '@/hooks/useSucursal'
 import { useTipoDocumento } from '@/hooks/useTipoDocumento'
 import Box from '@mui/material/Box'
@@ -16,8 +17,10 @@ import * as Yup from 'yup'
 
 export default function ClienteModal({ open, onClose, cliente }) {
     const { createCliente, updateCliente } = useMutateCliente()
+    const { session } = useSession()
     const { data: tiposDoc } = useTipoDocumento()
     const { data: sucursales } = useSucursal()
+    const isSuperAdmin = session?.role?.id === 1
 
     const validationSchema = useMemo(() => Yup.object({
         full_name: Yup.string().required('Nombre requerido'),
@@ -43,7 +46,7 @@ export default function ClienteModal({ open, onClose, cliente }) {
             password: '',
             confirmPassword: '',
             document_type: cliente?.document_type || '',
-            sucursal_id: cliente?.sucursal_id || '',
+            sucursal_id: cliente?.sucursal_id || (!isSuperAdmin ? session?.sucursal?.id : ''),
             tarifa: cliente?.tarifa || ''
         },
         enableReinitialize: true,
@@ -93,22 +96,32 @@ export default function ClienteModal({ open, onClose, cliente }) {
                     onSubmit={formik.handleSubmit}
                     sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1, py: 1 }}
                 >
-                    <TextField
-                        select
-                        label="Sucursal"
-                        name="sucursal_id"
-                        value={formik.values.sucursal_id}
-                        onChange={formik.handleChange}
-                        error={formik.touched.sucursal_id && Boolean(formik.errors.sucursal_id)}
-                        helperText={formik.touched.sucursal_id && formik.errors.sucursal_id}
-                        fullWidth
-                    >
-                        {sucursales?.map((item) => (
-                            <MenuItem key={item.id} value={item.id}>
-                                {item.name}
-                            </MenuItem>
-                        ))}
-                    </TextField>
+                    {isSuperAdmin ? (
+                        <TextField
+                            select
+                            label="Sucursal"
+                            name="sucursal_id"
+                            value={formik.values.sucursal_id}
+                            onChange={formik.handleChange}
+                            error={formik.touched.sucursal_id && Boolean(formik.errors.sucursal_id)}
+                            helperText={formik.touched.sucursal_id && formik.errors.sucursal_id}
+                            fullWidth
+                        >
+                            {sucursales?.map((item) => (
+                                <MenuItem key={item.id} value={item.id}>
+                                    {item.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    ) : (
+                        <TextField
+                            label="Sucursal"
+                            value={session?.sucursal?.name || ''}
+                            disabled
+                            fullWidth
+                            helperText="Sucursal asignada automáticamente"
+                        />
+                    )}
 
                     {cliente && (
                         <TextField

@@ -32,7 +32,7 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
 
             let rowsQuery = supabase
                 .from('proveedor_paquetes')
-                .select('*, sucursal_origen:sucursal_origen_id(id, name)')
+                .select('*, sucursal_origen:sucursal!proveedor_paquetes_sucursal_origen_id_fkey(id, name)')
 
             if (tipo) {
                 countQuery = countQuery.ilike('tipo', `%${tipo}%`)
