@@ -12,7 +12,7 @@ import DialogTitle from '@mui/material/DialogTitle'
 import MenuItem from '@mui/material/MenuItem'
 import TextField from '@mui/material/TextField'
 import { useFormik } from 'formik'
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import * as Yup from 'yup'
 
 export default function ClienteModal({ open, onClose, cliente }) {
@@ -69,6 +69,13 @@ export default function ClienteModal({ open, onClose, cliente }) {
             }
         }
     })
+
+    // When creating a new client, auto-assign the session's sucursal once session is available
+    useEffect(() => {
+        if (!cliente && !isSuperAdmin && session?.sucursal?.id && !formik.values.sucursal_id) {
+            formik.setFieldValue('sucursal_id', session.sucursal.id)
+        }
+    }, [session?.sucursal?.id, cliente, isSuperAdmin])
 
     const selectedSucursal = sucursales?.find(s => s.id === formik?.values?.sucursal_id)
     const tarifa = selectedSucursal?.tasa || ''
