@@ -16,10 +16,11 @@ export function useMutateTransferencia() {
 
             delete transferensia.paqueteList
 
-            // Step 1: Calculate total using RPC function
+            // Step 1: Calculate total using RPC function (peso × sucursal.tasa)
             const { data: totalCalculado, error: totalError } = await supabase
                 .rpc('calcular_total_transferencia', {
-                    p_paquete_codigos: listaPaquetes
+                    p_paquete_codigos: listaPaquetes,
+                    p_sucursal_id: transferensia.emisor_sucursal_id
                 })
 
             if (totalError) {
@@ -70,14 +71,12 @@ export function useMutateTransferencia() {
 
     const updateTransferencia = useMutation({
         mutationFn: async ({ id, paqueteList, ...rest }) => {
-            // Note: We don't allow updating the total field
-            // Total is preserved from creation time for historical accuracy
-            delete rest.total
+            delete rest.total  // recalculated below when packages change
 
-            // Get current values to detect status changes
+            // Get current values to detect status changes and have emisor as fallback
             const { data: current, error: fetchErr } = await supabase
                 .from('transferencia_sucursal')
-                .select('delivery_status')
+                .select('delivery_status, emisor_sucursal_id')
                 .eq('id', id)
                 .single()
 
@@ -133,6 +132,23 @@ export function useMutateTransferencia() {
                         .from('solicitud_paquete')
                         .insert(rows)
                     if (insErr) throw insErr
+                }
+
+                // Recalculate total with updated packages (peso × sucursal.tasa)
+                if (toRemove.length > 0 || toAdd.length > 0) {
+                    const emisorId = rest.emisor_sucursal_id ?? current.emisor_sucursal_id
+                    const { data: newTotal, error: totalErr } = await supabase
+                        .rpc('calcular_total_transferencia', {
+                            p_paquete_codigos: [...newCodes],
+                            p_sucursal_id: emisorId
+                        })
+                    if (totalErr) throw totalErr
+
+                    const { error: updateTotalErr } = await supabase
+                        .from('transferencia_sucursal')
+                        .update({ total: newTotal ?? 0 })
+                        .eq('id', id)
+                    if (updateTotalErr) throw updateTotalErr
                 }
             }
         },
