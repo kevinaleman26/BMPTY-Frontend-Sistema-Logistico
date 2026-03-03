@@ -65,16 +65,13 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
 
         if (solicitudIds.length > 0) {
             const SP_HARD_CAP = 4000
-            const spUpperBound = soloDisponibles
-                ? SP_HARD_CAP - 1
-                : Math.min(offset + limit * 4, SP_HARD_CAP) - 1
 
             const { data: spRows, error: spError } = await supabase
                 .from('solicitud_paquete')
                 .select('paquete_id')
                 .in('transferencia_id', solicitudIds)
                 .order('transferencia_id', { ascending: false })
-                .range(0, Math.max(spUpperBound, 0))
+                .range(0, SP_HARD_CAP - 1)
 
             if (spError) throw spError
             codigosTransferidos = (spRows ?? []).map(r => r.paquete_id)

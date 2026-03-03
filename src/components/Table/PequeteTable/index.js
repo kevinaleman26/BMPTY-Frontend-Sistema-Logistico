@@ -210,22 +210,20 @@ export default function PaqueteTable({ onEdit }) {
                         sortModel={sortModel}
                         onSortModelChange={handleSortModelChange}
                         disableRowSelectionOnClick
-                        sx={dataGridStyles}
-        // ⚡ Performance optimizations
-        columnBuffer={2}
-        columnThreshold={2}
-        disableColumnResize
-        disableColumnReorder
-        hideFooterSelectedRowCount
-        sx={{
-            ...dataGridStyles,
-            '& .MuiDataGrid-virtualScroller': {
-                overscrollBehaviorX: 'contain',
-            },
-            '& .MuiDataGrid-row': {
-                willChange: 'transform',
-            }
-        }}
+                        columnBuffer={2}
+                        columnThreshold={2}
+                        disableColumnResize
+                        disableColumnReorder
+                        hideFooterSelectedRowCount
+                        sx={{
+                            ...dataGridStyles,
+                            '& .MuiDataGrid-virtualScroller': {
+                                overscrollBehaviorX: 'contain',
+                            },
+                            '& .MuiDataGrid-row': {
+                                willChange: 'transform',
+                            }
+                        }}
                     />
                 )}
             </Box>
