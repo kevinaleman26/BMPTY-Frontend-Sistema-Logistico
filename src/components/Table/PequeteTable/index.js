@@ -1,6 +1,7 @@
 'use client'
 
 import { usePaquetes } from '@/hooks/usePaquetes'
+import { useSession } from '@/hooks/useSession'
 import { dataGridStyles } from '@/styles/dataGridStyles'
 import { tokens } from '@/styles/tokens'
 import Box from '@mui/material/Box'
@@ -22,6 +23,8 @@ import { OptimizedChip, StatusChip, CurrencyCell, DateCell } from './OptimizedCe
 export default function PaqueteTable({ onEdit }) {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const { session } = useSession()
+    const isSuperAdmin = session?.role?.id === 1
     const { data, count, isLoading, page, limit, orderBy, orderDir } = usePaquetes()
 
     const sortModel = useMemo(() => [{ field: orderBy, sort: orderDir }], [orderBy, orderDir])
@@ -64,6 +67,16 @@ export default function PaqueteTable({ onEdit }) {
     }
 
     const columns = useMemo(() => [
+        ...(isSuperAdmin ? [{
+            field: 'sucursal_origen',
+            headerName: 'Sucursal',
+            flex: 1,
+            minWidth: 140,
+            sortable: false,
+            filterable: false,
+            disableColumnMenu: true,
+            valueGetter: (value, row) => row.sucursal_origen?.name || '—',
+        }] : []),
         {
             field: 'codigo',
             headerName: 'Código',
@@ -177,7 +190,7 @@ export default function PaqueteTable({ onEdit }) {
                 </Box>
             )
         }
-    ], [])
+    ], [isSuperAdmin])
 
     const handlePaginationChange = useCallback(({ page: newPage, pageSize: newPageSize }) => {
         const params = new URLSearchParams(searchParams.toString())

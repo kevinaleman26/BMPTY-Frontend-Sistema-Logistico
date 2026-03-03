@@ -15,14 +15,66 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
     const factura_id = searchParams.get('factura_id') || ''
     const tipo = searchParams.get('tipo') || ''
     const codigo = searchParams.get('codigo') || ''
+    const sucursalFilter = searchParams.get('sucursal_id') || ''
     const orderBy = searchParams.get('orderBy') || 'codigo'
     const orderDir = searchParams.get('orderDir') || 'desc'
 
     const offset = (page - 1) * limit
 
-    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, orderBy, orderDir, sucursal: session?.sucursal?.id, soloDisponibles }]
+    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, sucursalFilter, orderBy, orderDir, sucursal: session?.sucursal?.id, soloDisponibles }]
 
     const queryFn = async () => {
+        // ─── SuperAdmin: vista global de todos los paquetes ─────────────────────
+        if (session.role.id === 1 && !soloDisponibles) {
+            let countQuery = supabase
+                .from('proveedor_paquetes')
+                .select('id', { count: 'exact', head: true })
+
+            let rowsQuery = supabase
+                .from('proveedor_paquetes')
+                .select('*, sucursal_origen:sucursal_origen_id(id, name)')
+
+            if (tipo) {
+                countQuery = countQuery.ilike('tipo', `%${tipo}%`)
+                rowsQuery = rowsQuery.ilike('tipo', `%${tipo}%`)
+            }
+            if (codigo) {
+                countQuery = countQuery.ilike('codigo', `%${codigo}%`)
+                rowsQuery = rowsQuery.ilike('codigo', `%${codigo}%`)
+            }
+            if (sucursalFilter) {
+                countQuery = countQuery.eq('sucursal_origen_id', sucursalFilter)
+                rowsQuery = rowsQuery.eq('sucursal_origen_id', sucursalFilter)
+            }
+
+            rowsQuery = rowsQuery
+                .order(orderBy, { ascending: orderDir === 'asc' })
+                .range(offset, offset + limit - 1)
+
+            const [
+                { count, error: countError },
+                { data: rows, error: rowsError }
+            ] = await Promise.all([countQuery, rowsQuery])
+
+            if (countError) throw countError
+            if (rowsError) throw rowsError
+
+            const codigos = (rows ?? []).map(r => r.codigo)
+            let codigosFacturados = new Set()
+            if (codigos.length > 0) {
+                const { data: facturadosData } = await supabase
+                    .from('factura_detalle')
+                    .select('paquete_id')
+                    .in('paquete_id', codigos)
+                codigosFacturados = new Set((facturadosData ?? []).map(d => d.paquete_id))
+            }
+
+            return {
+                data: (rows ?? []).map(row => ({ ...row, facturado: codigosFacturados.has(row.codigo) })),
+                count: count ?? 0
+            }
+        }
+
         if (!session?.sucursal?.id) return { data: [], count: 0 }
 
         // ─── PATH A: paquetes recibidos via transferencia ───────────────────────
