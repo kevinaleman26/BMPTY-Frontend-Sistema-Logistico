@@ -26,6 +26,7 @@ export default function SucursalModal({ open, onClose, sucursal }) {
             name: sucursal?.name || '',
             address: sucursal?.address || '',
             tasa: sucursal?.tasa || '',
+            tasa_transferencia: sucursal?.tasa_transferencia || '',
             ruc: sucursal?.ruc || '',
             razon_social: sucursal?.razon_social || '',
             telefono: sucursal?.telefono || '',
@@ -82,10 +83,18 @@ export default function SucursalModal({ open, onClose, sucursal }) {
                             fullWidth
                         />
                         <TextField
-                            label="Tasa (precio/LB)"
+                            label="Tasa de facturación (precio/LB)"
                             name="tasa"
                             type="number"
                             value={formik.values.tasa}
+                            onChange={formik.handleChange}
+                            fullWidth
+                        />
+                        <TextField
+                            label="Tasa de transferencia (precio/LB)"
+                            name="tasa_transferencia"
+                            type="number"
+                            value={formik.values.tasa_transferencia}
                             onChange={formik.handleChange}
                             fullWidth
                         />
