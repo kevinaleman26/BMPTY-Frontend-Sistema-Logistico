@@ -146,6 +146,9 @@ export function useMutateFactura() {
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ['facturas'] })
             qc.invalidateQueries({ queryKey: ['paquetes'] })
+            // Force-refresh the initial package selection cache so removed packages
+            // don't reappear when the modal is reopened within the 60s staleTime window.
+            qc.invalidateQueries({ queryKey: ['proveedor_paquetesInitSel'] })
         }
     })
 

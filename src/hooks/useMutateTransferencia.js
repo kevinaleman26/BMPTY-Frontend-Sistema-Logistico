@@ -69,9 +69,7 @@ export function useMutateTransferencia() {
     })
 
     const updateTransferencia = useMutation({
-        mutationFn: async ({ id, ...rest }) => {
-            delete rest.paqueteList
-
+        mutationFn: async ({ id, paqueteList, ...rest }) => {
             // Note: We don't allow updating the total field
             // Total is preserved from creation time for historical accuracy
             delete rest.total
@@ -101,10 +99,48 @@ export function useMutateTransferencia() {
                 .eq('id', id)
 
             if (error) throw error
+
+            // ── Sync package list (diff-based) ───────────────────────────────────
+            // paqueteList items may be solicitud_paquete rows (have .paquete_id)
+            // or full proveedor_paquetes rows (have .codigo). Handle both shapes.
+            if (paqueteList !== undefined) {
+                const newCodes = new Set(
+                    paqueteList.map(p => p.codigo ?? p.paquete_id).filter(Boolean)
+                )
+
+                const { data: currentSolicitudes } = await supabase
+                    .from('solicitud_paquete')
+                    .select('paquete_id')
+                    .eq('transferencia_id', id)
+
+                const currentCodes = new Set((currentSolicitudes ?? []).map(s => s.paquete_id))
+
+                const toRemove = [...currentCodes].filter(c => !newCodes.has(c))
+                const toAdd = [...newCodes].filter(c => !currentCodes.has(c))
+
+                if (toRemove.length > 0) {
+                    const { error: delErr } = await supabase
+                        .from('solicitud_paquete')
+                        .delete()
+                        .eq('transferencia_id', id)
+                        .in('paquete_id', toRemove)
+                    if (delErr) throw delErr
+                }
+
+                if (toAdd.length > 0) {
+                    const rows = toAdd.map(code => ({ transferencia_id: id, paquete_id: code }))
+                    const { error: insErr } = await supabase
+                        .from('solicitud_paquete')
+                        .insert(rows)
+                    if (insErr) throw insErr
+                }
+            }
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries(['transferencias'])
-            queryClient.invalidateQueries(['deuda-sucursales'])
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['transferencias'] })
+            queryClient.invalidateQueries({ queryKey: ['paquetes'] })
+            queryClient.invalidateQueries({ queryKey: ['proveedor_paquetesInitSel'] })
+            queryClient.invalidateQueries({ queryKey: ['deuda-sucursales'] })
         }
     })
 
