@@ -16,11 +16,11 @@ export function useMutateTransferencia() {
 
             delete transferensia.paqueteList
 
-            // Step 1: Calculate total using RPC function (peso × sucursal.tasa)
+            // Step 1: Calculate total using RPC function (SUM(peso) × tasa)
             const { data: totalCalculado, error: totalError } = await supabase
                 .rpc('calcular_total_transferencia', {
                     p_paquete_codigos: listaPaquetes,
-                    p_sucursal_id: transferensia.emisor_sucursal_id
+                    p_tasa: transferensia.tasa ?? 0
                 })
 
             if (totalError) {
@@ -134,22 +134,19 @@ export function useMutateTransferencia() {
                     if (insErr) throw insErr
                 }
 
-                // Recalculate total with updated packages (peso × sucursal.tasa)
-                if (toRemove.length > 0 || toAdd.length > 0) {
-                    const emisorId = rest.emisor_sucursal_id ?? current.emisor_sucursal_id
-                    const { data: newTotal, error: totalErr } = await supabase
-                        .rpc('calcular_total_transferencia', {
-                            p_paquete_codigos: [...newCodes],
-                            p_sucursal_id: emisorId
-                        })
-                    if (totalErr) throw totalErr
+                // Always recalculate total — covers both package changes and tasa changes
+                const { data: newTotal, error: totalErr } = await supabase
+                    .rpc('calcular_total_transferencia', {
+                        p_paquete_codigos: [...newCodes],
+                        p_tasa: rest.tasa ?? 0
+                    })
+                if (totalErr) throw totalErr
 
-                    const { error: updateTotalErr } = await supabase
-                        .from('transferencia_sucursal')
-                        .update({ total: newTotal ?? 0 })
-                        .eq('id', id)
-                    if (updateTotalErr) throw updateTotalErr
-                }
+                const { error: updateTotalErr } = await supabase
+                    .from('transferencia_sucursal')
+                    .update({ total: newTotal ?? 0 })
+                    .eq('id', id)
+                if (updateTotalErr) throw updateTotalErr
             }
         },
         onSettled: () => {

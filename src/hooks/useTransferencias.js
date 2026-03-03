@@ -41,6 +41,7 @@ export const useTransferencias = () => {
                 .select(`
                 id,
                 total,
+                tasa,
                 delivery_status,
                 payment_status,
                 delivery_date,
@@ -87,6 +88,7 @@ export const useTransferencias = () => {
                 .select(`
                 id,
                 total,
+                tasa,
                 delivery_status,
                 payment_status,
                 delivery_date,

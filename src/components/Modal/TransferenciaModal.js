@@ -21,7 +21,7 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { useFormik } from 'formik'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import * as Yup from 'yup'
 
 export default function TransferenciaModal({ open, onClose, transferencia }) {
@@ -50,6 +50,7 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                 (session?.role?.id !== 1 ? session?.sucursal?.id : ''),
             receptor_sucursal_id: transferencia?.receptor_sucursal?.id || '',
             metodo_pago_id: transferencia?.metodo_pago?.id ?? 0,  // Ninguno por defecto
+            tasa: transferencia?.tasa ?? '',
             delivery_status: transferencia?.delivery_status ?? false,
             payment_status: transferencia?.payment_status ?? false,
             paqueteList: transferencia?.solicitud_paquete || []
@@ -59,7 +60,11 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
             emisor_sucursal_id: Yup.string().required('Sucursal Emisora es requerido'),
             receptor_sucursal_id: Yup.string().required('Sucursal Receptora es requerido'),
             paqueteList: Yup.array().required('Lista de paquetes es requerido'),
-            metodo_pago_id: Yup.string().required('Método de Pago es requerido')
+            metodo_pago_id: Yup.string().required('Método de Pago es requerido'),
+            tasa: Yup.number()
+                .typeError('Debe ser un número')
+                .required('La tasa es requerida')
+                .min(0, 'Debe ser mayor o igual a 0'),
         }),
         onSubmit: async (values, { resetForm }) => {
             try {
@@ -71,6 +76,7 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
 
                 const payload = {
                     ...values,
+                    tasa: parseFloat(values.tasa) || 0,
                     delivery_status: Boolean(values.delivery_status),
                     payment_status: Boolean(values.payment_status)
                 }
@@ -113,6 +119,16 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
             }
         }
     })
+
+    // Preview del total: SUM(peso) × tasa
+    const { totalPeso, totalCalculado } = useMemo(() => {
+        const tasa = parseFloat(formik.values.tasa) || 0
+        const peso = (formik.values.paqueteList ?? []).reduce((sum, p) => {
+            // Handles full proveedor_paquetes rows (.peso) and solicitud_paquete rows (.paquete.peso)
+            return sum + (p.peso ?? p.paquete?.peso ?? 0)
+        }, 0)
+        return { totalPeso: peso, totalCalculado: peso * tasa }
+    }, [formik.values.paqueteList, formik.values.tasa])
 
     return (
         <>
@@ -190,6 +206,20 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                         />
                     )}
 
+                    {/* Tasa de transferencia — visible en creación y edición */}
+                    <TextField
+                        label="Tasa de transferencia ($/lb)"
+                        name="tasa"
+                        type="number"
+                        value={formik.values.tasa}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        error={formik.touched.tasa && Boolean(formik.errors.tasa)}
+                        helperText={formik.touched.tasa && formik.errors.tasa}
+                        inputProps={{ step: '0.01', min: '0' }}
+                        fullWidth
+                    />
+
                     {/* Campos solo visibles en modo edición */}
                     {transferencia && (
                         <>
@@ -239,6 +269,28 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                     <Divider />
                     <PaqueteTableSelection formik={formik} />
 
+                    {/* Resumen del total */}
+                    {formik.values.paqueteList?.length > 0 && (
+                        <Box sx={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            gap: 3,
+                            p: 1.5,
+                            backgroundColor: '#111',
+                            border: '1px solid #333',
+                            borderRadius: 1,
+                        }}>
+                            <Typography variant="body2" sx={{ color: '#aaa' }}>
+                                Peso total: <strong style={{ color: '#fff' }}>{totalPeso.toFixed(2)} lbs</strong>
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#aaa' }}>
+                                Tasa: <strong style={{ color: '#fff' }}>${parseFloat(formik.values.tasa || 0).toFixed(2)}/lb</strong>
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#aaa' }}>
+                                Total estimado: <strong style={{ color: '#f4b223', fontFamily: 'monospace' }}>${totalCalculado.toFixed(2)}</strong>
+                            </Typography>
+                        </Box>
+                    )}
 
                     <Divider />
 
@@ -246,8 +298,15 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                         <Button variant="outlined" onClick={onClose}>
                             Cancelar
                         </Button>
-                        <Button type="submit" variant="contained">
-                            Guardar
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            disabled={createTransferencia.isPending || updateTransferencia.isPending}
+                        >
+                            {(createTransferencia.isPending || updateTransferencia.isPending)
+                                ? <CircularProgress size={20} />
+                                : 'Guardar'
+                            }
                         </Button>
                     </Box>
                 </Box>
