@@ -195,11 +195,19 @@ export default function FacturaModal({ open, onClose, factura }) {
         funct()
     }, [formik.values.cliente_id])
 
+    // Factura pagada pero aún no entregada: el cliente pagó por adelantado y no ha
+    // pasado a recoger. Solo el estado de entrega debe ser editable en este caso.
+    const isPaidNotDelivered = Boolean(factura?.payment_status && !factura?.delivery_status)
+
     useEffect(() => {
         if (formik.values.sucursal_id) {
             setSucursalSelected(formik.values.sucursal_id)
+            // En modo creación, resetear cliente al cambiar sucursal (SuperAdmin)
+            if (!factura) {
+                formik.setFieldValue('cliente_id', '')
+            }
         }
-    }, [formik.values.sucursal_id])
+    }, [formik.values.sucursal_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Calcular totales visibles
     const subtotal = useMemo(() => {
@@ -232,6 +240,14 @@ export default function FacturaModal({ open, onClose, factura }) {
                     onSubmit={formik.handleSubmit}
                     sx={{ display: 'grid', gap: 2, mt: 2 }}
                 >
+                    {/* Alerta cuando la factura está pagada pero no entregada */}
+                    {isPaidNotDelivered && (
+                        <Alert severity="warning" sx={{ mb: 1 }}>
+                            Esta factura fue pagada pero el cliente aún no ha recogido su paquete.
+                            Solo el <strong>estado de entrega</strong> puede ser modificado.
+                        </Alert>
+                    )}
+
                     {/* Selects principales */}
                     {/* Campo de sucursal: solo editable para SuperAdmin */}
                     {session?.role?.id === 1 ? (
@@ -243,6 +259,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                             onChange={formik.handleChange}
                             error={formik.touched.sucursal_id && Boolean(formik.errors.sucursal_id)}
                             helperText={formik.touched.sucursal_id && formik.errors.sucursal_id}
+                            disabled={isPaidNotDelivered}
                             fullWidth
                         >
                             {sucursales?.map((s) => (
@@ -268,6 +285,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                         onChange={formik.handleChange}
                         error={formik.touched.cliente_id && Boolean(formik.errors.cliente_id)}
                         helperText={formik.touched.cliente_id && formik.errors.cliente_id}
+                        disabled={isPaidNotDelivered}
                         fullWidth
                     >
 
@@ -296,6 +314,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                             onChange={formik.handleChange}
                             error={formik.touched.metodo_pago_id && Boolean(formik.errors.metodo_pago_id)}
                             helperText={formik.touched.metodo_pago_id && formik.errors.metodo_pago_id}
+                            disabled={isPaidNotDelivered}
                             fullWidth
                         >
                             {metodosPago?.map((m) => (
@@ -312,16 +331,18 @@ export default function FacturaModal({ open, onClose, factura }) {
                                     <Switch
                                         name="delivery_status"
                                         checked={formik.values.delivery_status}
-                                        // Blocked when invoice is paid — can't undo delivery if already paid
-                                        disabled={formik.values.payment_status === true}
+                                        // Solo bloquear si ya fue entregada en la DB (no reversible)
+                                        disabled={factura?.delivery_status === true}
                                         onChange={(e) => formik.setFieldValue('delivery_status', e.target.checked)}
                                         color="primary"
                                     />
                                 }
                                 label={
-                                    formik.values.payment_status
-                                        ? 'Estado de entrega (bloqueado — factura pagada)'
-                                        : 'Estado de entrega'
+                                    factura?.delivery_status
+                                        ? 'Estado de entrega (ya entregado)'
+                                        : isPaidNotDelivered
+                                            ? 'Estado de entrega (cliente pagó — pendiente recogida)'
+                                            : 'Estado de entrega'
                                 }
                             />
 
@@ -330,7 +351,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                                     <Switch
                                         name="payment_status"
                                         checked={formik.values.payment_status}
-                                        // Once paid in the DB, payment cannot be reversed
+                                        // Una vez pagada en la DB, no se puede revertir
                                         disabled={factura?.payment_status === true}
                                         onChange={(e) => formik.setFieldValue('payment_status', e.target.checked)}
                                         color="primary"
@@ -349,6 +370,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                                     control={
                                         <Switch
                                             checked={formik.values.descuento_enabled}
+                                            disabled={isPaidNotDelivered}
                                             onChange={(e) => {
                                                 formik.setFieldValue('descuento_enabled', e.target.checked)
                                                 if (!e.target.checked) formik.setFieldValue('descuento_porcentaje', 0)
@@ -366,6 +388,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                                         value={formik.values.descuento_porcentaje}
                                         onChange={formik.handleChange}
                                         inputProps={{ min: 0, max: 100, step: 0.1 }}
+                                        disabled={isPaidNotDelivered}
                                         fullWidth
                                         size="small"
                                         InputProps={{
@@ -381,6 +404,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                                 control={
                                     <Switch
                                         checked={formik.values.itbms_enabled}
+                                        disabled={isPaidNotDelivered}
                                         onChange={(e) => formik.setFieldValue('itbms_enabled', e.target.checked)}
                                         color="primary"
                                     />
@@ -424,6 +448,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                                 <PaqueteTableSelection
                                     formik={formik}
                                     editable={!factura || (!factura.delivery_status && !factura.payment_status)}
+                                    emisorSucursalId={formik.values.sucursal_id || undefined}
                                 />
                             </>
                         ) : (

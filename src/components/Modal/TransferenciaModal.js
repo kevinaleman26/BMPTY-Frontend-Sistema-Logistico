@@ -206,7 +206,7 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                         />
                     )}
 
-                    {/* Tasa de transferencia — visible en creación y edición */}
+                    {/* Tasa de transferencia — visible en creación y edición, bloqueada si ya está pagada */}
                     <TextField
                         label="Tasa de transferencia ($/lb)"
                         name="tasa"
@@ -215,8 +215,12 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                         onChange={formik.handleChange}
                         onBlur={formik.handleBlur}
                         error={formik.touched.tasa && Boolean(formik.errors.tasa)}
-                        helperText={formik.touched.tasa && formik.errors.tasa}
+                        helperText={
+                            (formik.touched.tasa && formik.errors.tasa) ||
+                            (transferencia?.payment_status ? 'No se puede modificar una transferencia ya pagada' : undefined)
+                        }
                         inputProps={{ step: '0.01', min: '0' }}
+                        disabled={Boolean(transferencia?.payment_status)}
                         fullWidth
                     />
 
@@ -267,7 +271,16 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
                     )}
 
                     <Divider />
-                    <PaqueteTableSelection formik={formik} />
+                    {transferencia?.delivery_status && (
+                        <Typography variant="caption" sx={{ color: '#888', fontStyle: 'italic' }}>
+                            La lista de paquetes está bloqueada porque la transferencia ya fue entregada.
+                        </Typography>
+                    )}
+                    <PaqueteTableSelection
+                        formik={formik}
+                        editable={!transferencia?.delivery_status}
+                        emisorSucursalId={formik.values.emisor_sucursal_id || undefined}
+                    />
 
                     {/* Resumen del total */}
                     {formik.values.paqueteList?.length > 0 && (

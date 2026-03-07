@@ -137,11 +137,27 @@ export default function TransferenciaTable({ onEdit }) {
         })
     }, [])
 
-    const handleBulkUpdate = useCallback(async (changes) => {
-        const ids = selectedRows.map(r => r.id)
-        await bulkUpdateTransferencias.mutateAsync({ ids, ...changes })
+    // IDs elegibles por acción — solo afecta filas que realmente necesitan el cambio
+    const eligibleForDelivery = useMemo(
+        () => selectedRows.filter(r => !r.delivery_status).map(r => r.id),
+        [selectedRows]
+    )
+    const eligibleForPendingDelivery = useMemo(
+        // Solo revertir entrega si aún no está pagada (paquetes físicamente en destino + pagados = irreversible)
+        () => selectedRows.filter(r => r.delivery_status && !r.payment_status).map(r => r.id),
+        [selectedRows]
+    )
+    const eligibleForPaid = useMemo(
+        () => selectedRows.filter(r => !r.payment_status).map(r => r.id),
+        [selectedRows]
+    )
+    // Pago no se revierte via bulk — acción irreversible, debe hacerse registro por registro
+
+    const handleBulkUpdate = useCallback(async (changes, eligibleIds) => {
+        if (!eligibleIds.length) return
+        await bulkUpdateTransferencias.mutateAsync({ ids: eligibleIds, ...changes })
         setSelectedRows([])
-    }, [selectedRows, bulkUpdateTransferencias])
+    }, [bulkUpdateTransferencias])
 
     // Handle PDF download
     const handleDownloadPDF = useCallback(async (row) => {
@@ -318,45 +334,33 @@ export default function TransferenciaTable({ onEdit }) {
                             size="small"
                             variant="outlined"
                             color="success"
-                            onClick={() => handleBulkUpdate({ delivery_status: true })}
-                            disabled={bulkUpdateTransferencias.isPending}
+                            onClick={() => handleBulkUpdate({ delivery_status: true }, eligibleForDelivery)}
+                            disabled={bulkUpdateTransferencias.isPending || !eligibleForDelivery.length}
                             sx={{ textTransform: 'none' }}
                         >
-                            Marcar entregado
+                            Marcar entregado{eligibleForDelivery.length < selectedRows.length ? ` (${eligibleForDelivery.length})` : ''}
                         </Button>
                         <Button
                             size="small"
                             variant="outlined"
-                            onClick={() => handleBulkUpdate({ delivery_status: false })}
-                            disabled={bulkUpdateTransferencias.isPending}
+                            onClick={() => handleBulkUpdate({ delivery_status: false }, eligibleForPendingDelivery)}
+                            disabled={bulkUpdateTransferencias.isPending || !eligibleForPendingDelivery.length}
                             sx={{ textTransform: 'none', borderColor: '#666', color: '#aaa' }}
                         >
-                            Pendiente entrega
+                            Pendiente entrega{eligibleForPendingDelivery.length < selectedRows.length ? ` (${eligibleForPendingDelivery.length})` : ''}
                         </Button>
 
                         {canChangePayment && (
-                            <>
-                                <Button
-                                    size="small"
-                                    variant="outlined"
-                                    color="success"
-                                    onClick={() => handleBulkUpdate({ payment_status: true })}
-                                    disabled={bulkUpdateTransferencias.isPending}
-                                    sx={{ textTransform: 'none' }}
-                                >
-                                    Marcar pagado
-                                </Button>
-                                <Button
-                                    size="small"
-                                    variant="outlined"
-                                    color="error"
-                                    onClick={() => handleBulkUpdate({ payment_status: false })}
-                                    disabled={bulkUpdateTransferencias.isPending}
-                                    sx={{ textTransform: 'none' }}
-                                >
-                                    Pendiente pago
-                                </Button>
-                            </>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                color="success"
+                                onClick={() => handleBulkUpdate({ payment_status: true }, eligibleForPaid)}
+                                disabled={bulkUpdateTransferencias.isPending || !eligibleForPaid.length}
+                                sx={{ textTransform: 'none' }}
+                            >
+                                Marcar pagado{eligibleForPaid.length < selectedRows.length ? ` (${eligibleForPaid.length})` : ''}
+                            </Button>
                         )}
                     </Box>
 

@@ -24,11 +24,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SearchIcon } from '@/components/Icons'
 
 
-export default function PaqueteTableSelection({ formik, editable = true }) {
+export default function PaqueteTableSelection({ formik, editable = true, emisorSucursalId }) {
     const { session } = useSession()
     const [localPage, setLocalPage] = useState(1)
     const [localLimit, setLocalLimit] = useState(10)
-    const { data, count, isLoading, page, limit } = usePaquetes({ soloDisponibles: true, localPage, localLimit })
+    const { data, count, isLoading, page, limit } = usePaquetes({ soloDisponibles: true, localPage, localLimit, sucursalId: emisorSucursalId })
 
     // initDT: only used in read-only mode (editable=false) to fetch and display
     // current packages as a non-interactive list.
@@ -82,6 +82,19 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
         setSelectedRows(initialPackageData ?? [])
         setSelectedRowsReady(true)
     }, [initialPackageData])
+
+    // When SuperAdmin changes the emisor branch, clear the current selection so
+    // packages from the previous branch are not carried over.
+    // Only applies in create mode (no initial codes to preserve).
+    const prevEmisorRef = useRef(emisorSucursalId)
+    useEffect(() => {
+        if (prevEmisorRef.current === emisorSucursalId) return
+        prevEmisorRef.current = emisorSucursalId
+        if (initialCodes.length === 0) {
+            setSelectedRows([])
+            setLocalPage(1)
+        }
+    }, [emisorSucursalId, initialCodes.length])
 
     const [search, setSearch] = useState('')
     const [barcodeInput, setBarcodeInput] = useState('')

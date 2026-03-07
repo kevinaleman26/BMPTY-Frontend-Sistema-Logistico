@@ -138,6 +138,20 @@ src/
 | **Transferencias** | CRUD all | ❌ | ❌ | ❌ |
 | **Deudas** | View all | ❌ | ❌ | ❌ |
 | **Facturación** | CRUD all branches | CRUD own branch | Create + mark delivered | Read own only |
+
+#### Factura edit mode locking rules
+| State | Package list | Sucursal/Cliente/MetodoPago | Descuento/ITBMS | delivery_status | payment_status |
+|-------|-------------|----------------------------|-----------------|-----------------|----------------|
+| Not paid, not delivered | Editable | Editable | Editable | Toggle | Toggle |
+| **Paid, not delivered** (`isPaidNotDelivered`) | Locked | **Locked** | **Locked** | **Editable** (only field) | Locked (irreversible) |
+| Delivered (any payment) | Locked | Locked | Locked | Locked | Toggle if unpaid |
+
+- `isPaidNotDelivered = factura?.payment_status === true && !factura?.delivery_status`
+- Warning alert shown when `isPaidNotDelivered`: "Esta factura fue pagada pero el cliente aún no ha recogido su paquete."
+- `delivery_status` is disabled only when `factura?.delivery_status === true` (already delivered in DB — not reversible)
+- `payment_status` is disabled when `factura?.payment_status === true` (paid in DB — not reversible)
+- `PaqueteTableSelection` receives `emisorSucursalId={formik.values.sucursal_id}` so SuperAdmin sees packages from the selected branch (same `sucursalId` override pattern as in Transferencias)
+- When SuperAdmin changes `sucursal_id` in create mode, `cliente_id` is reset to '' automatically
 | **Timeline** | View all | View own branch | View own branch | View own packages |
 
 ### Data Layer
@@ -432,14 +446,20 @@ When Branch A transfers packages to Branch B:
 - Shown as a live preview in the modal: totalPeso × tasa
 
 #### Package Availability Rules (soloDisponibles)
-When selecting packages for a transfer, `usePaquetes({ soloDisponibles: true })` is used. A package appears as available if it belongs to the current branch AND meets ALL conditions:
+When selecting packages for a transfer, `usePaquetes({ soloDisponibles: true, sucursalId })` is used. A package appears as available if it belongs to the target branch AND meets ALL conditions:
+
+**Active branch resolution (`activeSucursalId`):**
+- `sucursalId` param (explicit override) takes precedence — used when SuperAdmin selects an `emisor_sucursal_id` in the form
+- Falls back to `session.sucursal.id` for Admin/Operador (fixed to their branch)
+- `usePaquetes` accepts `sucursalId` param; `PaqueteTableSelection` accepts `emisorSucursalId` prop and passes it through
+- When SuperAdmin changes `emisor_sucursal_id`, `PaqueteTableSelection` automatically clears the current selection (create mode only)
 
 **Sources** (union, deduped):
-1. **PATH A** — Received via transfer: packages in `solicitud_paquete` linked to a `transferencia_sucursal` where `receptor_sucursal_id = session.sucursal.id`
-2. **PATH B** — Registered directly: packages in `proveedor_paquetes` where `sucursal_origen_id = session.sucursal.id` AND have no `solicitud_paquete` record at all
+1. **PATH A** — Received via transfer: packages in `solicitud_paquete` linked to a `transferencia_sucursal` where `receptor_sucursal_id = activeSucursalId`
+2. **PATH B** — Registered directly: packages in `proveedor_paquetes` where `sucursal_origen_id = activeSucursalId` AND have no `solicitud_paquete` record at all
 
 **Excluded** from available pool:
-- In an **outgoing active transfer**: exists in `solicitud_paquete` linked to a `transferencia_sucursal` where `emisor_sucursal_id = session.sucursal.id` AND `delivery_status = false`
+- In an **outgoing active transfer**: exists in `solicitud_paquete` linked to a `transferencia_sucursal` where `emisor_sucursal_id = activeSucursalId` AND `delivery_status = false`
 - **Already invoiced**: exists in `factura_detalle`
 
 #### solicitud_paquete Constraint — CRITICAL
@@ -481,6 +501,19 @@ All fields above plus:
 - `payment_status`: Toggle
 
 In edit mode, `emisor_sucursal_id` and `receptor_sucursal_id` are **disabled** (cannot be changed).
+
+#### Edit mode field locking rules
+| Field | Pending delivery | Delivered + Unpaid | Delivered + Paid |
+|-------|-----------------|-------------------|-----------------|
+| Package list | Editable | **Locked** (read-only) | **Locked** (read-only) |
+| `tasa` | Editable | Editable | **Locked** |
+| `metodo_pago_id` | Editable | Editable | Editable |
+| `delivery_status` | Toggle | Toggle | Toggle |
+| `payment_status` | Toggle | Toggle | Toggle |
+
+- Package list is locked via `editable={!transferencia?.delivery_status}` prop on `PaqueteTableSelection`
+- `tasa` is locked via `disabled={Boolean(transferencia?.payment_status)}`
+- A caption message is shown when the package list is locked: *"La lista de paquetes está bloqueada porque la transferencia ya fue entregada."*
 
 #### Bulk Actions (TransferenciaTable)
 Available when ≥1 rows selected:
