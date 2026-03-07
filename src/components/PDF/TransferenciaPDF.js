@@ -39,20 +39,21 @@ const styles = StyleSheet.create({
         color: '#666',
         marginBottom: 2
     },
-    qrContainer: {
-        alignItems: 'center',
-        width: 120
-    },
-    qrCode: {
-        width: 100,
-        height: 100,
-        marginBottom: 4
-    },
-    qrLabel: {
-        fontSize: 8,
-        color: '#666',
-        textAlign: 'center'
-    },
+    // QR_DISABLED — descomentar cuando se habilite el tracking por QR
+    // qrContainer: {
+    //     alignItems: 'center',
+    //     width: 120
+    // },
+    // qrCode: {
+    //     width: 100,
+    //     height: 100,
+    //     marginBottom: 4
+    // },
+    // qrLabel: {
+    //     fontSize: 8,
+    //     color: '#666',
+    //     textAlign: 'center'
+    // },
     infoBlock: {
         marginBottom: 16,
         borderWidth: 1,
@@ -228,14 +229,14 @@ const styles = StyleSheet.create({
 const money = (n = 0) => `$${Number(n).toFixed(2)}`;
 const lb = (n = 0) => `${Number(n).toFixed(2)} LB`;
 
-export default function TransferenciaPDF({ data, qrCodeDataUrl }) {
+export default function TransferenciaPDF({ data /*, qrCodeDataUrl */ }) {
     const totalPaquetes = data?.paquetes?.length || 0;
     const pesoTotal = data?.paquetes?.reduce((sum, p) => sum + (Number(p.peso) || 0), 0) || 0;
 
     return (
         <Document>
             <Page size="A4" style={styles.page}>
-                {/* Header con QR */}
+                {/* Header */}
                 <View style={styles.headerBlock}>
                     <View style={styles.titleContainer}>
                         <Text style={styles.mainTitle}>TRANSFERENCIA</Text>
@@ -243,12 +244,14 @@ export default function TransferenciaPDF({ data, qrCodeDataUrl }) {
                         <Text style={styles.subtitle}>Documento No Fiscal</Text>
                         <Text style={styles.subtitle}>ID: #{data?.id}</Text>
                     </View>
+                    {/* QR_DISABLED — descomentar cuando se habilite el tracking por QR
                     <View style={styles.qrContainer}>
                         {qrCodeDataUrl && (
                             <Image style={styles.qrCode} src={qrCodeDataUrl} />
                         )}
                         <Text style={styles.qrLabel}>Escanear para tracking</Text>
                     </View>
+                    */}
                 </View>
 
                 {/* Información General */}

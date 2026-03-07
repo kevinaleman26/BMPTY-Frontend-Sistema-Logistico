@@ -52,7 +52,8 @@ export default function TransferenciaTable({ onEdit }) {
     const searchParams = useSearchParams()
     const { session } = useSession()
     const { cancelTransferencia, bulkUpdateTransferencias } = useMutateTransferencia()
-    const [qrCodes, setQrCodes] = useState({})
+    // QR_DISABLED — descomentar cuando se habilite el tracking por QR
+    // const [qrCodes, setQrCodes] = useState({})
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false)
     const [selectedRow, setSelectedRow] = useState(null)
     const [cancelTarget, setCancelTarget] = useState(null)
@@ -81,28 +82,24 @@ export default function TransferenciaTable({ onEdit }) {
     // SuperAdmin and Admin can change payment status
     const canChangePayment = session?.role?.id === 1 || session?.role?.id === 2
 
-    // ⚡ Generate QR code with dynamic import to reduce bundle
-    const generateQRCode = useCallback(async (transferId) => {
-        if (qrCodes[transferId]) return qrCodes[transferId]
-
-        try {
-            const QRCode = await import('qrcode')
-            const trackingUrl = `${window.location.origin}/tracking/transferencia/${transferId}`
-            const qrDataUrl = await QRCode.default.toDataURL(trackingUrl, {
-                width: 300,
-                margin: 2,
-                color: {
-                    dark: '#1256c4',
-                    light: '#ffffff'
-                }
-            })
-            setQrCodes(prev => ({ ...prev, [transferId]: qrDataUrl }))
-            return qrDataUrl
-        } catch (error) {
-            console.error('Error generating QR code:', error)
-            return null
-        }
-    }, [qrCodes])
+    // QR_DISABLED — descomentar cuando se habilite el tracking por QR
+    // const generateQRCode = useCallback(async (transferId) => {
+    //     if (qrCodes[transferId]) return qrCodes[transferId]
+    //     try {
+    //         const QRCode = await import('qrcode')
+    //         const trackingUrl = `${window.location.origin}/tracking/transferencia/${transferId}`
+    //         const qrDataUrl = await QRCode.default.toDataURL(trackingUrl, {
+    //             width: 300,
+    //             margin: 2,
+    //             color: { dark: '#1256c4', light: '#ffffff' }
+    //         })
+    //         setQrCodes(prev => ({ ...prev, [transferId]: qrDataUrl }))
+    //         return qrDataUrl
+    //     } catch (error) {
+    //         console.error('Error generating QR code:', error)
+    //         return null
+    //     }
+    // }, [qrCodes])
 
     const handlePageChange = useCallback((newPage) => {
         const params = new URLSearchParams(searchParams.toString())
@@ -148,7 +145,7 @@ export default function TransferenciaTable({ onEdit }) {
 
     // Handle PDF download
     const handleDownloadPDF = useCallback(async (row) => {
-        await generateQRCode(row.id)
+        // QR_DISABLED: await generateQRCode(row.id)
         setSelectedRow(row)
         if (!pdfComponents) {
             try {
@@ -163,7 +160,7 @@ export default function TransferenciaTable({ onEdit }) {
             }
         }
         setPdfDialogOpen(true)
-    }, [generateQRCode, pdfComponents])
+    }, [pdfComponents])
 
     // Handle cancel: open confirmation dialog
     const handleCancel = useCallback((row) => {
@@ -468,7 +465,7 @@ export default function TransferenciaTable({ onEdit }) {
                                         precio: sp.paquete?.precio || 0
                                     })) || []
                                 }}
-                                qrCodeDataUrl={qrCodes[selectedRow.id] || null}
+                                // QR_DISABLED: qrCodeDataUrl={qrCodes[selectedRow.id] || null}
                             />
                         }
                         fileName={`Transferencia-${selectedRow.id}.pdf`}

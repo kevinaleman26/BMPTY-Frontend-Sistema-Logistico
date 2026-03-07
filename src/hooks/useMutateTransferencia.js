@@ -41,12 +41,14 @@ export function useMutateTransferencia() {
 
             if (error) throw error
 
-            // Step 3: Update solicitud_paquete with transferencia_id
-            const { data: dt, error: solicitudError } = await supabase
+            // Step 3: Upsert solicitud_paquete rows (handles both PATH A packages
+            // that already have a row and PATH B packages that don't yet).
+            const { error: solicitudError } = await supabase
                 .from('solicitud_paquete')
-                .update({ transferencia_id: transferencia.id })
-                .in('paquete_id', listaPaquetes)
-                .select('*');
+                .upsert(
+                    listaPaquetes.map(code => ({ paquete_id: code, transferencia_id: transferencia.id })),
+                    { onConflict: 'paquete_id' }
+                )
 
             if (solicitudError) {
                 // Rollback: delete the created transfer if package assignment fails
@@ -130,7 +132,7 @@ export function useMutateTransferencia() {
                     const rows = toAdd.map(code => ({ transferencia_id: id, paquete_id: code }))
                     const { error: insErr } = await supabase
                         .from('solicitud_paquete')
-                        .insert(rows)
+                        .upsert(rows, { onConflict: 'paquete_id' })
                     if (insErr) throw insErr
                 }
 

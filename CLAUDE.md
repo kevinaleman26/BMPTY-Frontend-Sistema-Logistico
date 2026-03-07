@@ -397,6 +397,174 @@ When Branch A transfers packages to Branch B:
 **Component**: `SucursalDetailModal.js`
 **Hook**: `useSucursalPackages.js`
 
+### 5. Branch Transfer Module (Transferencias)
+
+**Files**:
+- `src/components/Table/TransferenciaTable/index.js` - Main table with bulk actions
+- `src/components/Table/TransferenciaTable/TransferenciaFilters.js` - Filters
+- `src/components/Modal/TransferenciaModal.js` - Create/edit modal
+- `src/components/TableSelection/PaqueteTableSelection/index.js` - Package selector used inside modal
+- `src/hooks/useTransferencias.js` - Data fetching
+- `src/hooks/useMutateTransferencia.js` - Create / update / cancel / bulkUpdate
+- `src/hooks/useSucursalTransferencias.js` - Branch-scoped totals and debts (for SucursalDetailModal)
+- `src/components/PDF/TransferenciaPDF.js` - PDF with QR code generation
+
+#### Access Control
+- **Create/Edit/Cancel**: SuperAdmin (role 1) and Admin (role 2) only (`canEdit = role === 1 || role === 2`)
+- **Change payment_status**: SuperAdmin and Admin only (`canChangePayment`)
+- **View**: SuperAdmin sees all transfers globally; Admin/Operador see only transfers where `emisor_sucursal_id = session.sucursal.id OR receptor_sucursal_id = session.sucursal.id`
+- **"ROBOT" sucursal**: Transfers with `emisor_sucursal_id` matching the sucursal named "ROBOT" are always excluded from the list query
+
+#### Transfer States
+| Field | Values | Meaning |
+|-------|--------|---------|
+| `delivery_status` | `false` / `true` | Pending / Received by destination branch |
+| `payment_status` | `false` / `true` | Unpaid / Paid by receptor to emisor |
+
+- `received_at` is set automatically when `delivery_status` changes to `true`
+- `operador_receptor_id` is set when marking as delivered (from `session.id`)
+- `operador_emisor_id` is set at creation time (from `session.id`)
+
+#### Total Calculation
+- `total = SUM(peso of all packages) × tasa`
+- Calculated via RPC `calcular_total_transferencia(p_paquete_codigos, p_tasa)`
+- Recalculated on every update (even if only tasa changes, not packages)
+- Shown as a live preview in the modal: totalPeso × tasa
+
+#### Package Availability Rules (soloDisponibles)
+When selecting packages for a transfer, `usePaquetes({ soloDisponibles: true })` is used. A package appears as available if it belongs to the current branch AND meets ALL conditions:
+
+**Sources** (union, deduped):
+1. **PATH A** — Received via transfer: packages in `solicitud_paquete` linked to a `transferencia_sucursal` where `receptor_sucursal_id = session.sucursal.id`
+2. **PATH B** — Registered directly: packages in `proveedor_paquetes` where `sucursal_origen_id = session.sucursal.id` AND have no `solicitud_paquete` record at all
+
+**Excluded** from available pool:
+- In an **outgoing active transfer**: exists in `solicitud_paquete` linked to a `transferencia_sucursal` where `emisor_sucursal_id = session.sucursal.id` AND `delivery_status = false`
+- **Already invoiced**: exists in `factura_detalle`
+
+#### solicitud_paquete Constraint — CRITICAL
+`solicitud_paquete.paquete_id` is the **PRIMARY KEY** of the table. This means:
+- Each package can have **only one** `solicitud_paquete` record across the entire table
+- The record stores the current `transferencia_id` — reassigned as the package moves between transfers
+- When **creating** a transfer: uses `UPDATE solicitud_paquete SET transferencia_id = ? WHERE paquete_id IN (...)` (assumes rows already exist from package registration)
+- When **editing** a transfer and adding packages: uses `UPSERT with onConflict: 'paquete_id'` — this handles packages from previously delivered transfers that still have a `solicitud_paquete` row
+- **Never use plain INSERT** when adding packages in edit mode — causes `duplicate key value violates unique constraint "solicitud_paquete_pkey"` (error code 23505)
+
+#### Editing a Transfer (diff-based sync)
+`updateTransferencia` computes the diff between the current DB state and the new package list:
+1. Fetch `currentCodes` from `solicitud_paquete WHERE transferencia_id = id`
+2. `toRemove` = codes in `currentCodes` not in `newCodes` → DELETE from `solicitud_paquete`
+3. `toAdd` = codes in `newCodes` not in `currentCodes` → UPSERT into `solicitud_paquete`
+4. Recalculate and update `total`
+
+The initial selection for edit mode is fetched via a separate query (`proveedor_paquetesInitSel`) and pre-populated as `selectedRows` in `PaqueteTableSelection` to avoid a flash to $0.
+
+#### Cancellation Flow
+`cancelTransferencia`:
+1. Fetch all `paquete_id` from `solicitud_paquete` for the transfer
+2. Log `TRANSFERENCIA_CANCELADA` event via `registrar_evento_paquete()` RPC for each package
+3. DELETE all `solicitud_paquete` rows (frees packages for re-use)
+4. DELETE the `transferencia_sucursal` row
+- Cancellation is **irreversible** — requires confirmation dialog
+- Packages become available again after cancellation
+
+#### Form Fields — Create mode
+- `emisor_sucursal_id`: Auto-assigned for Admin/Operador (from `session.sucursal.id`), selectable for SuperAdmin
+- `receptor_sucursal_id`: Required, must differ from emisor
+- `tasa`: Rate in $/lb, required, ≥ 0
+- `paqueteList`: At least 1 package required
+
+#### Form Fields — Edit mode
+All fields above plus:
+- `metodo_pago_id`: Payment method (required for edit)
+- `delivery_status`: Toggle — once set to true, records `received_at` and `operador_receptor_id`
+- `payment_status`: Toggle
+
+In edit mode, `emisor_sucursal_id` and `receptor_sucursal_id` are **disabled** (cannot be changed).
+
+#### Bulk Actions (TransferenciaTable)
+Available when ≥1 rows selected:
+- Mark delivered / Pending delivery — all roles with `canEdit`
+- Mark paid / Pending payment — SuperAdmin and Admin only
+
+#### PDF Generation
+- Uses `@react-pdf/renderer` with dynamic import to reduce bundle size
+- Includes QR code generated via `qrcode` library pointing to `/tracking/transferencia/${id}`
+- PDF triggered via hidden `PDFDownloadLink` + `PDFTrigger` effect pattern (avoids setState-during-render errors)
+
+#### Snackbar Z-Index Fix
+All `Snackbar` components inside modals MUST include `sx={{ zIndex: (theme) => theme.zIndex.modal + 1 }}`. Without this, error notifications appear behind the open Dialog because MUI Snackbar does not use a Portal and can be trapped behind the Dialog's stacking context. This applies to: `TransferenciaModal`, `SucursalModal`, `PaqueteModal`, and `PaqueteTableSelection`.
+
+### 6. Branch Debt Module (Deudas)
+
+**Route**: `/deudas-sucursales` — SuperAdmin only
+
+**Files**:
+- `src/app/(privado)/deudas-sucursales/page.js` — page wrapper
+- `src/components/Dashboard/DeudaSucursalesCard.js` — main component (two sections + drill-down dialogs)
+- `src/hooks/useDeudaSucursales.js` — all hooks for this module
+
+#### Two Independent Debt Sections
+
+**Section 1 — Transfer Debts (Deudas por Transferencias)**
+Debt owed by a receptor branch to the emisor branch for packages received but not yet paid.
+- Source: `transferencia_sucursal WHERE payment_status = false`
+- Grouped by `receptor_sucursal_id`
+- RPC: `obtener_deudas_sucursales()` → `{ sucursal_id, sucursal_name, sucursal_ruc, transferencias_pendientes, paquetes_totales, total_adeudado }`
+- Hook: `useDeudaSucursales()`
+
+**Section 2 — Invoice Debts (Deudas por Facturación)**
+Debt owed by clients to branches for invoices not yet paid.
+- Source: `factura WHERE payment_status = false`
+- Grouped by `sucursal_id`
+- RPC: `obtener_deudas_facturas_sucursales()` → `{ sucursal_id, sucursal_name, sucursal_ruc, facturas_pendientes, clientes_con_deuda, total_adeudado }`
+- Hook: `useDeudaFacturasSucursales()`
+
+#### Drill-Down Dialogs
+Each row in both tables has an eye icon that opens a dialog with the individual records:
+
+| Section | RPC | Hook | Filter param |
+|---------|-----|------|-------------|
+| Transferencias | `obtener_transferencias_pendientes(p_receptor_sucursal_id)` | `useTransferenciasPendientes(sucursalId)` | `receptor_sucursal_id` |
+| Facturas | `obtener_facturas_pendientes(p_sucursal_id)` | `useFacturasPendientes(sucursalId)` | `sucursal_id` |
+
+Drill-down dialogs load data lazily — only when the dialog is opened (`enabled: sucursalId !== undefined`).
+
+#### CRITICAL: Zero-Total Transfer Exclusion
+Transfers with `total = 0` are orphaned/invalid records (created via the PATH B bug) and must be excluded from all debt calculations. Add `AND ts.total > 0` to the WHERE clause of every debt RPC. Without this, zero-total transfers inflate the "Transferencias Pendientes" count even though they contribute nothing to the monetary total — making the count misleading.
+
+These orphaned transfers still appear in the main Transferencias module where they can be cancelled manually.
+
+#### CRITICAL: ROBOT Sucursal Exclusion
+The transfer list (`useTransferencias`) excludes transfers where `emisor_sucursal_id` matches the sucursal named `'ROBOT'`. **Both debt RPCs must apply the same exclusion**, otherwise the debt totals will include ROBOT transfers that are invisible in the transfer list, causing totals that don't match what users see.
+
+All RPCs that query `transferencia_sucursal` for debt must include:
+```sql
+AND ts.emisor_sucursal_id NOT IN (SELECT id FROM sucursal WHERE name = 'ROBOT')
+```
+
+This is already applied to `obtener_deudas_sucursales` and `obtener_transferencias_pendientes`.
+
+#### CRITICAL: PATH B Package Bug in createTransferencia
+Packages registered directly in a branch (PATH B) have **no pre-existing row** in `solicitud_paquete`. The original `createTransferencia` used `UPDATE solicitud_paquete ... WHERE paquete_id IN (...)` which silently updates 0 rows for PATH B packages, creating orphaned transfers with `total > 0` but no linked packages.
+
+**Fix**: `createTransferencia` now uses `upsert` with `onConflict: 'paquete_id'`:
+```javascript
+await supabase.from('solicitud_paquete').upsert(
+    listaPaquetes.map(code => ({ paquete_id: code, transferencia_id: transferencia.id })),
+    { onConflict: 'paquete_id' }
+)
+```
+This handles both PATH A packages (existing row → UPDATE) and PATH B packages (no row → INSERT).
+
+**Never use plain `UPDATE ... WHERE paquete_id IN (...)` or plain `INSERT`** when assigning packages to a transfer — always use `upsert`.
+
+#### Debt Query Keys (React Query)
+- `['deuda-sucursales']` — transfer debts summary (invalidated after transfer mutations)
+- `['deuda-facturas-sucursales']` — invoice debts summary
+- `['transferencias-pendientes', sucursalId]` — drill-down transfers
+- `['facturas-pendientes', sucursalId]` — drill-down invoices
+
 ## Role-Based Access Control (RBAC)
 
 ### Code-Level Permission Checks

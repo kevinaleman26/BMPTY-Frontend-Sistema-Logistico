@@ -149,6 +149,7 @@ export default function PaqueteModal({ open, onClose }) {
                 autoHideDuration={4000}
                 onClose={handleSnackbarClose}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                sx={{ zIndex: (theme) => theme.zIndex.modal + 1 }}
             >
                 <Alert elevation={6} variant="filled" severity={snackbar.severity} onClose={handleSnackbarClose}>
                     {snackbar.message}

@@ -9,11 +9,15 @@ import Button from '@mui/material/Button'
 import Checkbox from '@mui/material/Checkbox'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
 import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
 import Snackbar from '@mui/material/Snackbar'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
+import CloseIcon from '@mui/icons-material/Close'
 import { DataGrid } from '@mui/x-data-grid'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -82,6 +86,12 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
     const [search, setSearch] = useState('')
     const [barcodeInput, setBarcodeInput] = useState('')
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
+    const [overflowOpen, setOverflowOpen] = useState(false)
+
+    const totalPeso = useMemo(
+        () => selectedRows.reduce((acc, r) => acc + (Number(r.peso) || 0), 0),
+        [selectedRows]
+    )
 
     // 🚀 Trae los paquetes por código (solo si hay initDT) — FUERA de useMemo
     const {
@@ -104,34 +114,42 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
 
     const baseRows = data?.data || []
 
-    // ✅ Solo lógica sincrónica dentro de useMemo
+    // Set de códigos seleccionados para búsquedas O(1)
+    const selectedCodigos = useMemo(
+        () => new Set(selectedRows.map(r => r.codigo)),
+        [selectedRows]
+    )
+
+    // La tabla solo muestra paquetes disponibles (no seleccionados).
+    // Los seleccionados se muestran en los chips de arriba.
+    // Esto permite que la paginación del servidor funcione correctamente
+    // sin importar cuántos paquetes estén seleccionados.
     const filteredRows = useMemo(() => {
         if (initDT.length > 0) return initRows
 
-        // Paquetes ya seleccionados siempre al inicio; el resto viene del servidor.
-        // En modo edición los seleccionados están excluidos de baseRows (soloDisponibles),
-        // por lo que el Set evita duplicados sin coste adicional.
-        const selectedCodigos = new Set(selectedRows.map(r => r.codigo))
         const unselectedBase = baseRows.filter(r => !selectedCodigos.has(r.codigo))
 
-        if (!search.trim()) return [...selectedRows, ...unselectedBase]
+        if (!search.trim()) return unselectedBase
 
         const lower = search.toLowerCase()
-        const filtrados = unselectedBase.filter(row =>
+        return unselectedBase.filter(row =>
             Object.values(row).some(value => String(value).toLowerCase().includes(lower))
         )
-        // Seleccionados siempre visibles arriba aunque no coincidan con la búsqueda
-        return [...selectedRows, ...filtrados]
-    }, [initDT, initRows, baseRows, search, selectedRows])
+    }, [initDT, initRows, baseRows, search, selectedCodigos])
 
-    // Handlers de selección (después de filteredRows)
+    // Handlers de selección
+    // handleSelectAll opera solo sobre la página visible: agrega/quita los
+    // paquetes visibles sin afectar los seleccionados en otras páginas.
     const handleSelectAll = useCallback((event) => {
         if (event.target.checked) {
-            // Seleccionar todas las filas visibles
-            setSelectedRows(filteredRows)
+            setSelectedRows(prev => {
+                const prevCodigos = new Set(prev.map(r => r.codigo))
+                const toAdd = filteredRows.filter(r => !prevCodigos.has(r.codigo))
+                return [...prev, ...toAdd]
+            })
         } else {
-            // Deseleccionar todas
-            setSelectedRows([])
+            const pageCodigos = new Set(filteredRows.map(r => r.codigo))
+            setSelectedRows(prev => prev.filter(r => !pageCodigos.has(r.codigo)))
         }
     }, [filteredRows])
 
@@ -271,17 +289,21 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
             sortable: false,
             filterable: false,
             disableColumnMenu: true,
-            renderHeader: () => (
-                <Checkbox
-                    checked={filteredRows.length > 0 && selectedRows.length === filteredRows.length}
-                    indeterminate={selectedRows.length > 0 && selectedRows.length < filteredRows.length}
-                    onChange={handleSelectAll}
-                    disabled={!editable}
-                    sx={{ color: '#f4b223', '&.Mui-checked': { color: '#f4b223' } }}
-                />
-            ),
+            renderHeader: () => {
+                const allPageSelected = filteredRows.length > 0 && filteredRows.every(r => selectedCodigos.has(r.codigo))
+                const somePageSelected = filteredRows.some(r => selectedCodigos.has(r.codigo))
+                return (
+                    <Checkbox
+                        checked={allPageSelected}
+                        indeterminate={somePageSelected && !allPageSelected}
+                        onChange={handleSelectAll}
+                        disabled={!editable}
+                        sx={{ color: '#f4b223', '&.Mui-checked': { color: '#f4b223' } }}
+                    />
+                )
+            },
             renderCell: (params) => {
-                const isSelected = selectedRows.some(r => (r.id ?? r.codigo) === (params.row.id ?? params.row.codigo))
+                const isSelected = selectedCodigos.has(params.row.codigo)
                 return (
                     <Checkbox
                         checked={isSelected}
@@ -298,7 +320,7 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
         { field: 'ancho', headerName: 'Ancho', type: 'number', flex: 1, align: 'center', headerAlign: 'center' },
         { field: 'peso', headerName: 'Peso', type: 'number', flex: 1, align: 'center', headerAlign: 'center' },
         { field: 'volumen', headerName: 'Volumen', type: 'number', flex: 1, align: 'center', headerAlign: 'center' },
-    ], [filteredRows, selectedRows, handleSelectAll, handleSelectOne, initDT])
+    ], [filteredRows, selectedRows, selectedCodigos, handleSelectAll, handleSelectOne, initDT])
 
     return (
         <Box height="auto">
@@ -339,33 +361,56 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
                             autoComplete="off"
                         />
                     </Box>
-                    <Typography variant="subtitle1" gutterBottom>
-                        Seleccionados:
-                    </Typography>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                        <Typography variant="subtitle1">
+                            Seleccionados: <strong>{selectedRows.length}</strong>
+                        </Typography>
+                        {selectedRows.length > 0 && (
+                            <Typography variant="body2" color="text.secondary">
+                                Peso total: <strong>{totalPeso.toFixed(2)} lb</strong>
+                            </Typography>
+                        )}
+                    </Box>
                     <Box display="flex" gap={1} flexWrap="wrap">
                         {selectedRows.length === 0 ? (
                             <Typography variant="body2" color="text.secondary">
                                 No hay paquetes seleccionados.
                             </Typography>
                         ) : (
-                            selectedRows.map((item, idx) => (
-                                <Chip
-                                    key={idx}
-                                    label={item.codigo}
-                                    size="small"
-                                    onDelete={() => handleSelectOne(item)}
-                                    sx={{
-                                        backgroundColor: '#222',
-                                        color: '#fff',
-                                        border: '1px solid #444',
-                                        fontFamily: 'monospace',
-                                        '& .MuiChip-deleteIcon': {
-                                            color: '#888',
-                                            '&:hover': { color: '#fff' }
-                                        }
-                                    }}
-                                />
-                            ))
+                            <>
+                                {selectedRows.slice(0, 10).map((item, idx) => (
+                                    <Chip
+                                        key={idx}
+                                        label={item.codigo}
+                                        size="small"
+                                        onDelete={editable ? () => handleSelectOne(item) : undefined}
+                                        sx={{
+                                            backgroundColor: '#222',
+                                            color: '#fff',
+                                            border: '1px solid #444',
+                                            fontFamily: 'monospace',
+                                            '& .MuiChip-deleteIcon': {
+                                                color: '#888',
+                                                '&:hover': { color: '#fff' }
+                                            }
+                                        }}
+                                    />
+                                ))}
+                                {selectedRows.length > 10 && (
+                                    <Chip
+                                        label={`+${selectedRows.length - 10} más`}
+                                        size="small"
+                                        onClick={() => setOverflowOpen(true)}
+                                        sx={{
+                                            backgroundColor: '#f4b223',
+                                            color: '#000',
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            '&:hover': { backgroundColor: '#e0a020' }
+                                        }}
+                                    />
+                                )}
+                            </>
                         )}
                     </Box>
                 </Box>
@@ -426,12 +471,65 @@ export default function PaqueteTableSelection({ formik, editable = true }) {
                 />
             )}
 
+            {/* Modal overflow: todos los paquetes seleccionados */}
+            <Dialog
+                open={overflowOpen}
+                onClose={() => setOverflowOpen(false)}
+                fullWidth
+                maxWidth="sm"
+                sx={{ zIndex: (theme) => theme.zIndex.modal + 2 }}
+                PaperProps={{ sx: { backgroundColor: '#111', border: '1px solid #444' } }}
+            >
+                <DialogTitle sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid #444',
+                    pb: 1
+                }}>
+                    <Box>
+                        <Typography variant="subtitle1" component="span">
+                            Todos los paquetes seleccionados ({selectedRows.length})
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                            Peso total: {totalPeso.toFixed(2)} lb
+                        </Typography>
+                    </Box>
+                    <IconButton onClick={() => setOverflowOpen(false)} size="small" sx={{ color: '#888' }}>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ pt: 2 }}>
+                    <Box display="flex" gap={1} flexWrap="wrap">
+                        {selectedRows.map((item, idx) => (
+                            <Chip
+                                key={idx}
+                                label={`${item.codigo} · ${Number(item.peso).toFixed(2)} lb`}
+                                size="small"
+                                onDelete={editable ? () => { handleSelectOne(item); if (selectedRows.length <= 11) setOverflowOpen(false) } : undefined}
+                                sx={{
+                                    backgroundColor: '#222',
+                                    color: '#fff',
+                                    border: '1px solid #444',
+                                    fontFamily: 'monospace',
+                                    '& .MuiChip-deleteIcon': {
+                                        color: '#888',
+                                        '&:hover': { color: '#f44336' }
+                                    }
+                                }}
+                            />
+                        ))}
+                    </Box>
+                </DialogContent>
+            </Dialog>
+
             {/* Snackbar para notificaciones */}
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={6000}
                 onClose={handleCloseSnackbar}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                sx={{ zIndex: (theme) => theme.zIndex.modal + 1 }}
             >
                 <Alert
                     onClose={handleCloseSnackbar}

@@ -18,8 +18,14 @@ export function useMutateFactura() {
             impuestos,
             total,
             trackingCodes = [],
-            operador_factura_id = null
+            operador_factura_id = null,
+            delivery_status = false,
+            payment_status = false
         }) => {
+            if (!trackingCodes.length) {
+                throw new Error('Debes seleccionar al menos un paquete')
+            }
+
             const { data: cab, error: cabErr } = await supabase
                 .from('factura')
                 .insert([{
@@ -31,7 +37,9 @@ export function useMutateFactura() {
                     otros,
                     impuestos,
                     total,
-                    operador_factura_id
+                    operador_factura_id,
+                    delivery_status,
+                    payment_status
                 }])
                 .select('id')
                 .single()
@@ -39,10 +47,13 @@ export function useMutateFactura() {
 
             const facturaId = cab.id
 
-            if (trackingCodes.length) {
-                const rows = trackingCodes.map(code => ({ factura_id: facturaId, paquete_id: code }))
-                const { error: detErr } = await supabase.from('factura_detalle').insert(rows)
-                if (detErr) throw detErr
+            const rows = trackingCodes.map(code => ({ factura_id: facturaId, paquete_id: code }))
+            const { error: detErr } = await supabase.from('factura_detalle').insert(rows)
+
+            if (detErr) {
+                // Rollback: eliminar la factura si falló la inserción de paquetes
+                await supabase.from('factura').delete().eq('id', facturaId)
+                throw detErr
             }
 
             return facturaId

@@ -319,6 +319,7 @@ export default function TransferenciaModal({ open, onClose, transferencia }) {
             autoHideDuration={6000}
             onClose={handleSnackbarClose}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            sx={{ zIndex: (theme) => theme.zIndex.modal + 1 }}
         >
             <Alert
                 onClose={handleSnackbarClose}
