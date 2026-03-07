@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 
-export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } = {}) => {
+export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit, sucursalId: sucursalIdOverride } = {}) => {
     const searchParams = useSearchParams()
     const { session, loading } = useSession()
 
@@ -16,12 +16,17 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
     const tipo = searchParams.get('tipo') || ''
     const codigo = searchParams.get('codigo') || ''
     const sucursalFilter = searchParams.get('sucursal_id') || ''
+    const estado = searchParams.get('estado') || ''
     const orderBy = searchParams.get('orderBy') || 'codigo'
     const orderDir = searchParams.get('orderDir') || 'desc'
 
     const offset = (page - 1) * limit
 
-    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, sucursalFilter, orderBy, orderDir, sucursal: session?.sucursal?.id, soloDisponibles }]
+    // For branch-scoped queries, prefer explicit override (SuperAdmin selecting emisor),
+    // then fall back to the session branch (Admin/Operador).
+    const activeSucursalId = sucursalIdOverride ?? session?.sucursal?.id
+
+    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, sucursalFilter, estado, orderBy, orderDir, sucursal: activeSucursalId, soloDisponibles }]
 
     const queryFn = async () => {
         // ─── SuperAdmin: vista global de todos los paquetes ─────────────────────
@@ -45,6 +50,36 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
             if (sucursalFilter) {
                 countQuery = countQuery.eq('sucursal_origen_id', sucursalFilter)
                 rowsQuery = rowsQuery.eq('sucursal_origen_id', sucursalFilter)
+            }
+
+            // ─── Filtro estado (SuperAdmin) ──────────────────────────────────────
+            if (estado === 'facturado' || estado === 'no_facturado') {
+                const { data: fdAll } = await supabase.from('factura_detalle').select('paquete_id')
+                const fdCodigos = (fdAll ?? []).map(r => r.paquete_id)
+                if (estado === 'facturado') {
+                    if (!fdCodigos.length) return { data: [], count: 0 }
+                    countQuery = countQuery.in('codigo', fdCodigos)
+                    rowsQuery  = rowsQuery.in('codigo', fdCodigos)
+                } else {
+                    if (fdCodigos.length) {
+                        countQuery = countQuery.not('codigo', 'in', fdCodigos)
+                        rowsQuery  = rowsQuery.not('codigo', 'in', fdCodigos)
+                    }
+                }
+            } else if (estado === 'en_transferencia_activa' || estado === 'transferencia_recibida') {
+                const { data: tsRows } = await supabase
+                    .from('transferencia_sucursal')
+                    .select('id')
+                    .eq('delivery_status', estado === 'transferencia_recibida')
+                if (!tsRows?.length) return { data: [], count: 0 }
+                const { data: spRows } = await supabase
+                    .from('solicitud_paquete')
+                    .select('paquete_id')
+                    .in('transferencia_id', tsRows.map(r => r.id))
+                const estadoCodigos = (spRows ?? []).map(r => r.paquete_id)
+                if (!estadoCodigos.length) return { data: [], count: 0 }
+                countQuery = countQuery.in('codigo', estadoCodigos)
+                rowsQuery  = rowsQuery.in('codigo', estadoCodigos)
             }
 
             rowsQuery = rowsQuery
@@ -75,13 +110,13 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
             }
         }
 
-        if (!session?.sucursal?.id) return { data: [], count: 0 }
+        if (!activeSucursalId) return { data: [], count: 0 }
 
         // ─── PATH A: paquetes recibidos via transferencia ───────────────────────
         let tsQuery = supabase
             .from('transferencia_sucursal')
             .select('id')
-            .eq('receptor_sucursal_id', session.sucursal.id)
+            .eq('receptor_sucursal_id', activeSucursalId)
             .eq('delivery_status', true)  // Solo transferencias ya recibidas
 
         // Solo incluimos transferencias cuya entrega fue confirmada (delivery_status=true).
@@ -97,7 +132,7 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
         const directQuery = supabase
             .from('proveedor_paquetes')
             .select('codigo, solicitud_paquete:solicitud_paquete(paquete_id)')
-            .eq('sucursal_origen_id', session.sucursal.id)
+            .eq('sucursal_origen_id', activeSucursalId)
             .is('solicitud_paquete.paquete_id', null)
 
         // Ejecutar ambas queries en paralelo
@@ -131,6 +166,39 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
 
         // Unión de ambas fuentes (sin duplicados)
         let paqueteCodigos = [...new Set([...codigosTransferidos, ...codigosDirectos])]
+
+        // ─── Filtro estado (non-admin, !soloDisponibles) ─────────────────────────
+        if (!soloDisponibles && estado) {
+            if (estado === 'en_transferencia_activa') {
+                // Paquetes en transferencias activas donde esta sucursal es emisora o receptora
+                const { data: activeTsRows } = await supabase
+                    .from('transferencia_sucursal')
+                    .select('id')
+                    .or(`emisor_sucursal_id.eq.${activeSucursalId},receptor_sucursal_id.eq.${activeSucursalId}`)
+                    .eq('delivery_status', false)
+                if (!activeTsRows?.length) return { data: [], count: 0 }
+                const { data: spRows } = await supabase
+                    .from('solicitud_paquete')
+                    .select('paquete_id')
+                    .in('transferencia_id', activeTsRows.map(r => r.id))
+                paqueteCodigos = (spRows ?? []).map(r => r.paquete_id)
+            } else if (estado === 'transferencia_recibida') {
+                // Solo paquetes que llegaron vía transferencia recibida (PATH A)
+                paqueteCodigos = codigosTransferidos
+            } else if (estado === 'facturado' || estado === 'no_facturado') {
+                if (paqueteCodigos.length > 0) {
+                    const { data: fdRows } = await supabase
+                        .from('factura_detalle')
+                        .select('paquete_id')
+                        .in('paquete_id', paqueteCodigos)
+                    const fdSet = new Set((fdRows ?? []).map(r => r.paquete_id))
+                    paqueteCodigos = estado === 'facturado'
+                        ? paqueteCodigos.filter(c => fdSet.has(c))
+                        : paqueteCodigos.filter(c => !fdSet.has(c))
+                }
+            }
+        }
+
         if (paqueteCodigos.length === 0) return { data: [], count: 0 }
 
         // ─── EXCLUSIONES (solo cuando soloDisponibles) ───────────────────────────
@@ -139,7 +207,7 @@ export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit } =
             const { data: outgoingTs } = await supabase
                 .from('transferencia_sucursal')
                 .select('id')
-                .eq('emisor_sucursal_id', session.sucursal.id)
+                .eq('emisor_sucursal_id', activeSucursalId)
                 .eq('delivery_status', false)
 
             const [enTransitoData, facturadosData] = await Promise.all([

@@ -39,7 +39,7 @@ const validationSchema = Yup.object({
  */
 export default function PaqueteEditModal({ open, onClose, paquete }) {
   const { updatePaquete } = useMutatePaquete();
-  const { estaFacturado, isLoading: checkingFacturado } = usePaqueteFacturado(
+  const { estaFacturado, estaPagado, bloqueadoParaEditar, isLoading: checkingFacturado } = usePaqueteFacturado(
     paquete?.codigo,
   );
   const [showWarning, setShowWarning] = useState(false);
@@ -131,8 +131,8 @@ export default function PaqueteEditModal({ open, onClose, paquete }) {
           >
             <CircularProgress sx={{ color: tokens.accent.primary }} />
           </Box>
-        ) : estaFacturado ? (
-          /* Paquete ya facturado - Mostrar mensaje de error */
+        ) : bloqueadoParaEditar ? (
+          /* Paquete facturado Y pagado - Bloqueo total */
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
             <Alert
               severity="error"
@@ -147,9 +147,9 @@ export default function PaqueteEditModal({ open, onClose, paquete }) {
                 🚫 No se puede editar este paquete
               </Typography>
               <Typography variant="body2">
-                Este paquete ya fue <strong>facturado</strong> y no puede ser
-                modificado. Editar el peso o precio alteraría los cálculos de la
-                factura existente.
+                Este paquete ya fue <strong>facturado y pagado</strong>. No es
+                posible modificarlo porque alteraría los registros de una
+                transacción ya cerrada.
               </Typography>
             </Alert>
 
@@ -205,12 +205,34 @@ export default function PaqueteEditModal({ open, onClose, paquete }) {
             </Box>
           </Box>
         ) : (
-          /* Paquete NO facturado - Permitir edición */
+          /* Paquete NO bloqueado - Permitir edición */
           <Box
             component="form"
             onSubmit={formik.handleSubmit}
             sx={{ display: "flex", flexDirection: "column", gap: 3 }}
           >
+            {/* Advertencia: facturado pero no pagado */}
+            {estaFacturado && !estaPagado && (
+              <Alert
+                severity="warning"
+                sx={{
+                  backgroundColor: "rgba(255, 152, 0, 0.1)",
+                  border: "1px solid rgba(255, 152, 0, 0.3)",
+                  color: tokens.text.primary,
+                  "& .MuiAlert-icon": { color: "#ff9800" },
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  ⚠️ Paquete facturado (pago pendiente)
+                </Typography>
+                <Typography variant="body2">
+                  Este paquete está incluido en una factura que aún{" "}
+                  <strong>no ha sido pagada</strong>. Modificar el peso o precio
+                  actualizará automáticamente el total de la factura.
+                </Typography>
+              </Alert>
+            )}
+
             {/* Información del paquete (read-only) */}
             <Box
               sx={{

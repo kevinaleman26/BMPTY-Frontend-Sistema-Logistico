@@ -107,6 +107,21 @@ export default function PaqueteFilters() {
                 helperText="Acepta código manual o escaneo de barcode"
             />
 
+            <TextField
+                select
+                label="Estado"
+                value={searchParams.get('estado') || ''}
+                onChange={(e) => handleFilterChange('estado', e.target.value)}
+                size="small"
+                sx={{ minWidth: 210 }}
+            >
+                <MenuItem value="">Todos</MenuItem>
+                <MenuItem value="en_transferencia_activa">En transferencia activa</MenuItem>
+                <MenuItem value="transferencia_recibida">Transferencia recibida</MenuItem>
+                <MenuItem value="facturado">Facturado</MenuItem>
+                <MenuItem value="no_facturado">No facturado</MenuItem>
+            </TextField>
+
             {isSuperAdmin && (
                 <TextField
                     select

@@ -8,7 +8,9 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ReceiptIcon from '@mui/icons-material/Receipt'
 import PersonIcon from '@mui/icons-material/Person'
 import CancelIcon from '@mui/icons-material/Cancel'
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import Box from '@mui/material/Box'
+import Chip from '@mui/material/Chip'
 import Typography from '@mui/material/Typography'
 import CircularProgress from '@mui/material/CircularProgress'
 
@@ -52,6 +54,53 @@ const EVENT_CONFIG = {
         titulo: 'Transferencia Cancelada',
         descripcion: 'Transferencia cancelada'
     }
+}
+
+const ESTADO_CONFIG = {
+    'INGRESO':                  { label: 'Ingresado',              color: '#4caf50', bg: 'rgba(76,175,80,0.1)'  },
+    'TRANSFERENCIA_ENVIADA':    { label: 'En tránsito',            color: '#2196f3', bg: 'rgba(33,150,243,0.1)' },
+    'TRANSFERENCIA_RECIBIDA':   { label: 'Recibido en destino',    color: '#4caf50', bg: 'rgba(76,175,80,0.1)'  },
+    'FACTURADO':                { label: 'Facturado',              color: '#f4b223', bg: 'rgba(244,178,35,0.1)' },
+    'ENTREGADO':                { label: 'Entregado al cliente',   color: '#9c27b0', bg: 'rgba(156,39,176,0.1)' },
+    'TRANSFERENCIA_CANCELADA':  { label: 'Transferencia cancelada',color: '#f44336', bg: 'rgba(244,67,54,0.1)'  },
+}
+
+function EstadoBanner({ eventos }) {
+    if (!eventos?.length) return null
+    const ultimo = eventos[eventos.length - 1]
+    const cfg = ESTADO_CONFIG[ultimo.evento_tipo]
+    if (!cfg) return null
+    const esTransferencia = ultimo.evento_tipo === 'TRANSFERENCIA_ENVIADA' || ultimo.evento_tipo === 'TRANSFERENCIA_RECIBIDA'
+
+    return (
+        <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            p: 1.5,
+            mb: 2,
+            borderRadius: '8px',
+            backgroundColor: cfg.bg,
+            border: `1px solid ${cfg.color}40`,
+        }}>
+            <Chip
+                label={cfg.label}
+                size="small"
+                sx={{ backgroundColor: cfg.color, color: '#fff', fontWeight: 700, fontSize: '0.75rem' }}
+            />
+            {esTransferencia && ultimo.emisor_sucursal_name && ultimo.receptor_sucursal_name && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem', fontWeight: 600 }}>
+                        {ultimo.emisor_sucursal_name}
+                    </Typography>
+                    <ArrowForwardIcon sx={{ color: cfg.color, fontSize: 16 }} />
+                    <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem', fontWeight: 600 }}>
+                        {ultimo.receptor_sucursal_name}
+                    </Typography>
+                </Box>
+            )}
+        </Box>
+    )
 }
 
 /**
@@ -199,10 +248,28 @@ function TimelineEvent({ evento, isLast }) {
                             </Box>
                         )}
 
+                        {(evento.evento_tipo === 'TRANSFERENCIA_ENVIADA' || evento.evento_tipo === 'TRANSFERENCIA_RECIBIDA') &&
+                            evento.emisor_sucursal_name && evento.receptor_sucursal_name && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography sx={{ color: tokens.text.muted, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '80px' }}>
+                                    Ruta:
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem' }}>
+                                        {evento.emisor_sucursal_name}
+                                    </Typography>
+                                    <ArrowForwardIcon sx={{ color: config.color, fontSize: 14 }} />
+                                    <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem' }}>
+                                        {evento.receptor_sucursal_name}
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        )}
+
                         {evento.factura_id && (
                             <Box sx={{ display: 'flex', gap: 1 }}>
-                                <Typography sx={{ 
-                                    color: tokens.text.muted, 
+                                <Typography sx={{
+                                    color: tokens.text.muted,
                                     fontSize: '0.75rem',
                                     textTransform: 'uppercase',
                                     letterSpacing: '0.05em',
@@ -210,8 +277,8 @@ function TimelineEvent({ evento, isLast }) {
                                 }}>
                                     Factura:
                                 </Typography>
-                                <Typography sx={{ 
-                                    color: config.color, 
+                                <Typography sx={{
+                                    color: config.color,
                                     fontSize: '0.8125rem',
                                     fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace',
                                     fontWeight: 600
@@ -279,6 +346,9 @@ export default function PaqueteTimeline({ codigoPaquete }) {
             borderRadius: '8px',
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E")`
         }}>
+            {/* Banner de estado actual */}
+            <EstadoBanner eventos={eventos} />
+
             {/* Header */}
             <Box sx={{ mb: 3, pb: 2, borderBottom: `1px solid ${tokens.border.soft}` }}>
                 <Typography sx={{ 

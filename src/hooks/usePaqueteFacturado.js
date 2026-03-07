@@ -4,29 +4,34 @@ import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 
 /**
- * Hook para verificar si un paquete ya fue facturado
- * Retorna true si el paquete existe en la tabla factura_detalle
+ * Hook para verificar el estado de facturación de un paquete.
+ *
+ * - estaFacturado:      el paquete aparece en factura_detalle
+ * - estaPagado:         la factura relacionada tiene payment_status = true
+ * - bloqueadoParaEditar: facturado Y pagado → edición completamente bloqueada
+ *   (si solo está facturado pero no pagado se permite editar con advertencia)
  */
 export const usePaqueteFacturado = (codigoPaquete) => {
     const queryKey = ['paquete-facturado', codigoPaquete]
 
     const queryFn = async () => {
-        if (!codigoPaquete) return false
+        if (!codigoPaquete) return { estaFacturado: false, estaPagado: false }
 
         const { data, error } = await supabase
             .from('factura_detalle')
-            .select('id')
+            .select('id, factura:factura_id(payment_status)')
             .eq('paquete_id', codigoPaquete)
             .limit(1)
-            .single()
+            .maybeSingle()
 
-        if (error && error.code !== 'PGRST116') {
-            // PGRST116 = no rows returned, que significa no está facturado
-            throw error
+        if (error) throw error
+
+        if (!data) return { estaFacturado: false, estaPagado: false }
+
+        return {
+            estaFacturado: true,
+            estaPagado: data.factura?.payment_status === true,
         }
-
-        // Si hay data, significa que está facturado
-        return !!data
     }
 
     const { data, isLoading, isError, error } = useQuery({
@@ -35,8 +40,13 @@ export const usePaqueteFacturado = (codigoPaquete) => {
         enabled: !!codigoPaquete,
     })
 
+    const estaFacturado = data?.estaFacturado ?? false
+    const estaPagado    = data?.estaPagado    ?? false
+
     return {
-        estaFacturado: data || false,
+        estaFacturado,
+        estaPagado,
+        bloqueadoParaEditar: estaFacturado && estaPagado,
         isLoading,
         isError,
         error,
