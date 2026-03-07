@@ -52,7 +52,7 @@ export default function PaqueteTimelineModal({ open, onClose, codigoPaquete }) {
                         <TimelineIcon sx={{ color: tokens.accent.secondary, fontSize: 20 }} />
                     </Box>
                     <Box>
-                        <Typography variant="h6" sx={{ color: tokens.text.emphasis, fontWeight: 600, fontSize: '1.125rem' }}>
+                        <Typography sx={{ color: tokens.text.emphasis, fontWeight: 600, fontSize: '1.125rem' }}>
                             Cronología del Paquete
                         </Typography>
                         <Typography sx={{ 

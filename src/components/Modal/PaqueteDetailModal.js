@@ -40,7 +40,7 @@ export default function PaqueteDetailModal({ open, onClose, paquete }) {
         >
             {/* Header */}
             <DialogTitle sx={{ borderBottom: `1px solid ${tokens.border.soft}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" sx={{ color: tokens.text.emphasis, fontWeight: 600 }}>
+                <Typography sx={{ color: tokens.text.emphasis, fontWeight: 600, fontSize: '1.25rem' }}>
                     Detalle del Paquete
                 </Typography>
                 <IconButton onClick={onClose} sx={{ color: tokens.text.secondary }}>
