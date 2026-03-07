@@ -11,16 +11,23 @@ export const usePaqueteTimeline = (codigoPaquete) => {
     const queryKey = ['paquete-timeline', codigoPaquete]
 
     const queryFn = async () => {
-        if (!codigoPaquete) return []
+        if (!codigoPaquete) return { eventos: [], transferenciaActiva: null }
 
-        const { data, error } = await supabase
-            .rpc('obtener_cronologia_paquete', {
-                p_paquete_id: codigoPaquete
-            })
+        const [{ data: eventos, error }, { data: spRow }] = await Promise.all([
+            supabase.rpc('obtener_cronologia_paquete', { p_paquete_id: codigoPaquete }),
+            supabase
+                .from('solicitud_paquete')
+                .select('transferencia_id, transferencia:transferencia_id(id, delivery_status, payment_status, emisor:sucursal!transferencia_sucursal_emisor_sucursal_id_fkey(name), receptor:sucursal!transferencia_sucursal_receptor_sucursal_id_fkey(name))')
+                .eq('paquete_id', codigoPaquete)
+                .maybeSingle()
+        ])
 
         if (error) throw error
 
-        return data || []
+        const ts = spRow?.transferencia
+        const transferenciaActiva = ts && ts.delivery_status === false ? ts : null
+
+        return { eventos: eventos || [], transferenciaActiva }
     }
 
     const { data, isLoading, isError, error } = useQuery({
@@ -30,7 +37,8 @@ export const usePaqueteTimeline = (codigoPaquete) => {
     })
 
     return {
-        eventos: data || [],
+        eventos: data?.eventos || [],
+        transferenciaActiva: data?.transferenciaActiva || null,
         isLoading,
         isError,
         error,

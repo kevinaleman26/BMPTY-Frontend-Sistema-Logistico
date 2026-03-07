@@ -9,6 +9,7 @@ import ReceiptIcon from '@mui/icons-material/Receipt'
 import PersonIcon from '@mui/icons-material/Person'
 import CancelIcon from '@mui/icons-material/Cancel'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
+import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import Box from '@mui/material/Box'
 import Chip from '@mui/material/Chip'
 import Typography from '@mui/material/Typography'
@@ -63,6 +64,45 @@ const ESTADO_CONFIG = {
     'FACTURADO':                { label: 'Facturado',              color: '#f4b223', bg: 'rgba(244,178,35,0.1)' },
     'ENTREGADO':                { label: 'Entregado al cliente',   color: '#9c27b0', bg: 'rgba(156,39,176,0.1)' },
     'TRANSFERENCIA_CANCELADA':  { label: 'Transferencia cancelada',color: '#f44336', bg: 'rgba(244,67,54,0.1)'  },
+}
+
+function TransferenciaActivaBanner({ transferencia }) {
+    if (!transferencia) return null
+    return (
+        <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            p: 1.5,
+            mb: 2,
+            borderRadius: '8px',
+            backgroundColor: 'rgba(255, 152, 0, 0.08)',
+            border: '1px solid rgba(255, 152, 0, 0.35)',
+        }}>
+            <WarningAmberIcon sx={{ color: '#ff9800', fontSize: 20, flexShrink: 0 }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Chip
+                    label="En transferencia activa"
+                    size="small"
+                    sx={{ backgroundColor: '#ff9800', color: '#000', fontWeight: 700, fontSize: '0.75rem' }}
+                />
+                <Typography sx={{ color: tokens.text.secondary, fontSize: '0.8125rem' }}>
+                    Transferencia
+                    <Typography component="span" sx={{ color: '#ff9800', fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 700, mx: 0.5 }}>
+                        #{transferencia.id}
+                    </Typography>
+                    pendiente de recepción
+                </Typography>
+                {transferencia.emisor?.name && transferencia.receptor?.name && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem', fontWeight: 600 }}>{transferencia.emisor.name}</Typography>
+                        <ArrowForwardIcon sx={{ color: '#ff9800', fontSize: 14 }} />
+                        <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem', fontWeight: 600 }}>{transferencia.receptor.name}</Typography>
+                    </Box>
+                )}
+            </Box>
+        </Box>
+    )
 }
 
 function EstadoBanner({ eventos }) {
@@ -248,22 +288,35 @@ function TimelineEvent({ evento, isLast }) {
                             </Box>
                         )}
 
-                        {(evento.evento_tipo === 'TRANSFERENCIA_ENVIADA' || evento.evento_tipo === 'TRANSFERENCIA_RECIBIDA') &&
-                            evento.emisor_sucursal_name && evento.receptor_sucursal_name && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography sx={{ color: tokens.text.muted, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '80px' }}>
-                                    Ruta:
-                                </Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem' }}>
-                                        {evento.emisor_sucursal_name}
-                                    </Typography>
-                                    <ArrowForwardIcon sx={{ color: config.color, fontSize: 14 }} />
-                                    <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem' }}>
-                                        {evento.receptor_sucursal_name}
-                                    </Typography>
-                                </Box>
-                            </Box>
+                        {(evento.evento_tipo === 'TRANSFERENCIA_ENVIADA' || evento.evento_tipo === 'TRANSFERENCIA_RECIBIDA') && (
+                            <>
+                                {evento.transferencia_id && (
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Typography sx={{ color: tokens.text.muted, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '80px' }}>
+                                            Transfer:
+                                        </Typography>
+                                        <Typography sx={{ color: config.color, fontSize: '0.8125rem', fontFamily: 'var(--font-jetbrains), "JetBrains Mono", monospace', fontWeight: 600 }}>
+                                            #{evento.transferencia_id}
+                                        </Typography>
+                                    </Box>
+                                )}
+                                {evento.emisor_sucursal_name && evento.receptor_sucursal_name && (
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography sx={{ color: tokens.text.muted, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', minWidth: '80px' }}>
+                                            Ruta:
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                            <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem' }}>
+                                                {evento.emisor_sucursal_name}
+                                            </Typography>
+                                            <ArrowForwardIcon sx={{ color: config.color, fontSize: 14 }} />
+                                            <Typography sx={{ color: tokens.text.primary, fontSize: '0.8125rem' }}>
+                                                {evento.receptor_sucursal_name}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                )}
+                            </>
                         )}
 
                         {evento.factura_id && (
@@ -298,7 +351,7 @@ function TimelineEvent({ evento, isLast }) {
  * Componente principal de cronología de paquete
  */
 export default function PaqueteTimeline({ codigoPaquete }) {
-    const { eventos, isLoading, isError, error } = usePaqueteTimeline(codigoPaquete)
+    const { eventos, transferenciaActiva, isLoading, isError, error } = usePaqueteTimeline(codigoPaquete)
 
     if (isLoading) {
         return (
@@ -346,6 +399,9 @@ export default function PaqueteTimeline({ codigoPaquete }) {
             borderRadius: '8px',
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E")`
         }}>
+            {/* Banner: transferencia activa (pendiente de recepción) */}
+            <TransferenciaActivaBanner transferencia={transferenciaActiva} />
+
             {/* Banner de estado actual */}
             <EstadoBanner eventos={eventos} />
 
