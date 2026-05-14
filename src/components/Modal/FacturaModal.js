@@ -5,22 +5,26 @@ import PaqueteTableSelection from '@/components/TableSelection/PaqueteTableSelec
 import { useClientesBasic } from '@/hooks/useClientesBasic'
 import { useMetodoPago } from '@/hooks/useMetodoPago'
 import { useMutateFactura } from '@/hooks/useMutateFactura'
+import { useSession } from '@/hooks/useSession'
 import { useSucursal } from '@/hooks/useSucursal'
 import { supabase } from '@/lib/supabase'
-import {
-    Box, Button,
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    Divider,
-    FormControlLabel,
-    MenuItem,
-    Switch,
-    TextField,
-    Typography
-} from '@mui/material'
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Divider from '@mui/material/Divider'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import InputAdornment from '@mui/material/InputAdornment'
+import MenuItem from '@mui/material/MenuItem'
+import Snackbar from '@mui/material/Snackbar'
+import Switch from '@mui/material/Switch'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
 import { useFormik } from 'formik'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import * as Yup from 'yup'
 
 function flattenProveedorPaquetes(detalle) {
@@ -41,11 +45,22 @@ function flattenProveedorPaquetes(detalle) {
 
 export default function FacturaModal({ open, onClose, factura }) {
     const [sucursalSelected, setSucursalSelected] = useState(0)
+    const { session } = useSession()
     const { data: sucursales } = useSucursal()
     const { data: metodosPago } = useMetodoPago()
     const { data: clientes } = useClientesBasic(sucursalSelected)
     const { createFactura, updateFactura } = useMutateFactura()
-    const [clientDetail, setClientDetail] = useState(0)
+    const [clientDetail, setClientDetail] = useState(null)
+    const [loadingClient, setLoadingClient] = useState(false)
+
+    // Prevenir cierre accidental del modal
+    const handleModalClose = (event, reason) => {
+        // Solo permitir cerrar con el botón cancelar, no con click fuera o ESC
+        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+            return
+        }
+        onClose()
+    }
 
 
     const getClient = async (clientId) => {
@@ -55,44 +70,86 @@ export default function FacturaModal({ open, onClose, factura }) {
 
     const formik = useFormik({
         initialValues: {
-            sucursal_id: factura?.sucursal?.id || '',
+            sucursal_id: factura?.sucursal?.id || (session?.role?.id !== 1 ? session?.sucursal?.id : ''),
             cliente_id: factura?.cliente?.id || '',
-            metodo_pago_id: factura?.metodo_pago?.id || '',
+            metodo_pago_id: factura?.metodo_pago?.id ?? 0,  // Por defecto "Ninguno" (ID = 0)
             paqueteList: factura?.factura_detalle?.map(item => flattenProveedorPaquetes(item)) || [],
             delivery_status: factura?.delivery_status ?? false,
-            payment_status: factura?.payment_status ?? false
+            payment_status: factura?.payment_status ?? false,
+            descuento_enabled: (factura?.descuento || 0) > 0,
+            descuento_porcentaje: factura?.subtotal > 0
+                ? parseFloat(((factura.descuento / factura.subtotal) * 100).toFixed(2))
+                : 0,
+            itbms_enabled: (factura?.impuestos || 0) > 0
         },
         enableReinitialize: true,
         validationSchema: Yup.object({
             sucursal_id: Yup.string().required('Sucursal requerida'),
-            cliente_id: Yup.string().required('Cliente requerido'),
-            metodo_pago_id: Yup.string().required('Método de pago requerido')
+            cliente_id: Yup.string().required('Cliente requerido')
+            // metodo_pago_id ya no es requerido, se establece por defecto
         }),
         onSubmit: async (values, { resetForm }) => {
             try {
-                const trackingCodes = values.paqueteList.map(p => p.codigo)
-                if (!trackingCodes.length) {
-                    alert('Debes seleccionar al menos 1 paquete.')
-                    return
-                }
-
-                // Totales calculados (mantengo tu lógica actual)
-                const descuento = factura?.descuento || 0
-                const otros = factura?.otros || 0
-                const impuestos = factura?.impuestos || 0
-                const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail.tarifa || 1)), 0)
-                const totalCalc = subtotalCalc - descuento + otros + impuestos
-
                 if (factura) {
-                    await updateFactura.mutateAsync({
+                    // Packages can only be modified when the invoice is not yet delivered nor paid
+                    const isEditable = !factura.delivery_status && !factura.payment_status
+
+                    // Recalculate subtotal from current package list when editable;
+                    // otherwise use the stored value to avoid drift
+                    const baseSubtotal = isEditable
+                        ? values.paqueteList.reduce(
+                            (acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail?.tarifa || 1)),
+                            0
+                          )
+                        : (factura.subtotal || 0)
+
+                    const descuentoAmt = values.descuento_enabled
+                        ? baseSubtotal * (Number(values.descuento_porcentaje) / 100)
+                        : 0
+                    const itbmsAmt = values.itbms_enabled ? baseSubtotal * 0.07 : 0
+                    const otrosAmt = factura.otros || 0
+                    const totalCalc = baseSubtotal - descuentoAmt + otrosAmt + itbmsAmt
+
+                    const updatePayload = {
                         id: factura.id,
+                        prevDeliveryStatus: factura.delivery_status,
+                        prevPaymentStatus: factura.payment_status,
                         sucursal_id: values.sucursal_id,
                         cliente_id: values.cliente_id,
                         metodo_pago_id: values.metodo_pago_id,
                         delivery_status: values.delivery_status,
-                        payment_status: values.payment_status
-                    })
+                        payment_status: values.payment_status,
+                        descuento: descuentoAmt,
+                        impuestos: itbmsAmt,
+                        subtotal: baseSubtotal,
+                        total: totalCalc
+                    }
+
+                    // Include package list changes only when invoice is still editable
+                    if (isEditable) {
+                        updatePayload.trackingCodes = values.paqueteList.map(p => p.codigo)
+                    }
+
+                    // If marking as delivered, add operator
+                    if (values.delivery_status === true && factura.delivery_status === false) {
+                        updatePayload.operador_entrega_id = session?.id
+                    }
+
+                    await updateFactura.mutateAsync(updatePayload)
                 } else {
+                    const trackingCodes = values.paqueteList.map(p => p.codigo)
+                    if (!trackingCodes.length) {
+                        alert('Debes seleccionar al menos 1 paquete.')
+                        return
+                    }
+
+                    // Totales calculados
+                    const descuento = factura?.descuento || 0
+                    const otros = factura?.otros || 0
+                    const impuestos = factura?.impuestos || 0
+                    const subtotalCalc = values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail?.tarifa || 1)), 0)
+                    const totalCalc = subtotalCalc - descuento + otros + impuestos
+
                     await createFactura.mutateAsync({
                         sucursal_id: values.sucursal_id,
                         cliente_id: values.cliente_id,
@@ -102,7 +159,10 @@ export default function FacturaModal({ open, onClose, factura }) {
                         otros,
                         impuestos,
                         total: totalCalc,
-                        trackingCodes
+                        trackingCodes,
+                        operador_factura_id: session?.id,
+                        delivery_status: false,  // Siempre pendiente al crear
+                        payment_status: false    // Siempre pendiente al crear
                     })
                 }
 
@@ -118,31 +178,61 @@ export default function FacturaModal({ open, onClose, factura }) {
     useEffect(() => {
         const funct = async () => {
             if (formik.values.cliente_id) {
-                setClientDetail(await getClient(formik.values.cliente_id))
+                setLoadingClient(true)
+                try {
+                    const client = await getClient(formik.values.cliente_id)
+                    setClientDetail(client)
+                } catch (error) {
+                    console.error('Error loading client:', error)
+                    setClientDetail(null)
+                } finally {
+                    setLoadingClient(false)
+                }
+            } else {
+                setClientDetail(null)
             }
         }
         funct()
     }, [formik.values.cliente_id])
 
+    // Factura pagada pero aún no entregada: el cliente pagó por adelantado y no ha
+    // pasado a recoger. Solo el estado de entrega debe ser editable en este caso.
+    const isPaidNotDelivered = Boolean(factura?.payment_status && !factura?.delivery_status)
+
     useEffect(() => {
         if (formik.values.sucursal_id) {
             setSucursalSelected(formik.values.sucursal_id)
+            // En modo creación, resetear cliente al cambiar sucursal (SuperAdmin)
+            if (!factura) {
+                formik.setFieldValue('cliente_id', '')
+            }
         }
-    }, [formik.values.sucursal_id])
+    }, [formik.values.sucursal_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
     // Calcular totales visibles
     const subtotal = useMemo(() => {
-        if (!formik.values.paqueteList?.length) return 0
+        if (!formik.values.paqueteList?.length || !clientDetail) return 0
         return formik.values.paqueteList.reduce((acc, p) => acc + ((Number(p.peso) || 0) * (clientDetail.tarifa || 1)), 0)
-    }, [formik.values.paqueteList, formik.values.cliente_id])
+    }, [formik.values.paqueteList, clientDetail])
 
-    const descuento = factura?.descuento || 0
     const otros = factura?.otros || 0
-    const impuestos = factura?.impuestos || 0
-    const total = useMemo(() => subtotal - descuento + otros + impuestos, [subtotal, descuento, otros, impuestos])
+
+    const descuentoAmount = useMemo(() => {
+        if (!formik.values.descuento_enabled) return 0
+        const base = subtotal > 0 ? subtotal : (factura?.subtotal || 0)
+        return base * (Number(formik.values.descuento_porcentaje) / 100)
+    }, [formik.values.descuento_enabled, formik.values.descuento_porcentaje, subtotal, factura])
+
+    const itbmsAmount = useMemo(() => {
+        if (!formik.values.itbms_enabled) return 0
+        const base = subtotal > 0 ? subtotal : (factura?.subtotal || 0)
+        return base * 0.07
+    }, [formik.values.itbms_enabled, subtotal, factura])
+
+    const total = useMemo(() => subtotal - descuentoAmount + otros + itbmsAmount, [subtotal, descuentoAmount, otros, itbmsAmount])
 
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
+        <Dialog open={open} onClose={handleModalClose} fullWidth maxWidth="lg" PaperProps={{sx:{backgroundColor:"background.paper",border:"1px solid",borderColor:"divider"}}}>
             <DialogTitle sx={{borderBottom:"1px solid",borderColor:"divider"}}>{factura ? 'Editar Factura' : 'Crear Factura'}</DialogTitle>
             <DialogContent>
                 <Box
@@ -150,21 +240,42 @@ export default function FacturaModal({ open, onClose, factura }) {
                     onSubmit={formik.handleSubmit}
                     sx={{ display: 'grid', gap: 2, mt: 2 }}
                 >
+                    {/* Alerta cuando la factura está pagada pero no entregada */}
+                    {isPaidNotDelivered && (
+                        <Alert severity="warning" sx={{ mb: 1 }}>
+                            Esta factura fue pagada pero el cliente aún no ha recogido su paquete.
+                            Solo el <strong>estado de entrega</strong> puede ser modificado.
+                        </Alert>
+                    )}
+
                     {/* Selects principales */}
-                    <TextField
-                        select
-                        label="Sucursal"
-                        name="sucursal_id"
-                        value={formik.values.sucursal_id}
-                        onChange={formik.handleChange}
-                        error={formik.touched.sucursal_id && Boolean(formik.errors.sucursal_id)}
-                        helperText={formik.touched.sucursal_id && formik.errors.sucursal_id}
-                        fullWidth
-                    >
-                        {sucursales?.map((s) => (
-                            <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-                        ))}
-                    </TextField>
+                    {/* Campo de sucursal: solo editable para SuperAdmin */}
+                    {session?.role?.id === 1 ? (
+                        <TextField
+                            select
+                            label="Sucursal"
+                            name="sucursal_id"
+                            value={formik.values.sucursal_id}
+                            onChange={formik.handleChange}
+                            error={formik.touched.sucursal_id && Boolean(formik.errors.sucursal_id)}
+                            helperText={formik.touched.sucursal_id && formik.errors.sucursal_id}
+                            disabled={isPaidNotDelivered}
+                            fullWidth
+                        >
+                            {sucursales?.map((s) => (
+                                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                            ))}
+                        </TextField>
+                    ) : (
+                        <TextField
+                            label="Sucursal"
+                            name="sucursal_id"
+                            value={session?.sucursal?.name || ''}
+                            disabled
+                            fullWidth
+                            helperText="Sucursal asignada automáticamente"
+                        />
+                    )}
 
                     <TextField
                         select
@@ -174,6 +285,7 @@ export default function FacturaModal({ open, onClose, factura }) {
                         onChange={formik.handleChange}
                         error={formik.touched.cliente_id && Boolean(formik.errors.cliente_id)}
                         helperText={formik.touched.cliente_id && formik.errors.cliente_id}
+                        disabled={isPaidNotDelivered}
                         fullWidth
                     >
 
@@ -192,51 +304,166 @@ export default function FacturaModal({ open, onClose, factura }) {
                         }
                     </TextField>
 
-                    <TextField
-                        select
-                        label="Método de pago"
-                        name="metodo_pago_id"
-                        value={formik.values.metodo_pago_id}
-                        onChange={formik.handleChange}
-                        error={formik.touched.metodo_pago_id && Boolean(formik.errors.metodo_pago_id)}
-                        helperText={formik.touched.metodo_pago_id && formik.errors.metodo_pago_id}
-                        fullWidth
-                    >
-                        {metodosPago?.map((m) => (
-                            <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>
-                        ))}
-                    </TextField>
+                    {/* Método de pago: solo visible en modo edición */}
+                    {factura && (
+                        <TextField
+                            select
+                            label="Método de pago"
+                            name="metodo_pago_id"
+                            value={formik.values.metodo_pago_id}
+                            onChange={formik.handleChange}
+                            error={formik.touched.metodo_pago_id && Boolean(formik.errors.metodo_pago_id)}
+                            helperText={formik.touched.metodo_pago_id && formik.errors.metodo_pago_id}
+                            disabled={isPaidNotDelivered}
+                            fullWidth
+                        >
+                            {metodosPago?.map((m) => (
+                                <MenuItem key={m.id} value={m.id}>{m.name}</MenuItem>
+                            ))}
+                        </TextField>
+                    )}
 
-                    {/* Estados */}
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                name="delivery_status"
-                                checked={formik.values.delivery_status}
-                                onChange={(e) => formik.setFieldValue('delivery_status', e.target.checked)}
-                                color="primary"
+                    {/* Estados y ajustes: solo visibles en modo edición */}
+                    {factura && (
+                        <>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        name="delivery_status"
+                                        checked={formik.values.delivery_status}
+                                        // Solo bloquear si ya fue entregada en la DB (no reversible)
+                                        disabled={factura?.delivery_status === true}
+                                        onChange={(e) => formik.setFieldValue('delivery_status', e.target.checked)}
+                                        color="primary"
+                                    />
+                                }
+                                label={
+                                    factura?.delivery_status
+                                        ? 'Estado de entrega (ya entregado)'
+                                        : isPaidNotDelivered
+                                            ? 'Estado de entrega (cliente pagó — pendiente recogida)'
+                                            : 'Estado de entrega'
+                                }
                             />
-                        }
-                        label="Estado de entrega"
-                    />
 
-                    <FormControlLabel
-                        control={
-                            <Switch
-                                name="payment_status"
-                                checked={formik.values.payment_status}
-                                onChange={(e) => formik.setFieldValue('payment_status', e.target.checked)}
-                                color="primary"
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        name="payment_status"
+                                        checked={formik.values.payment_status}
+                                        // Una vez pagada en la DB, no se puede revertir
+                                        disabled={factura?.payment_status === true}
+                                        onChange={(e) => formik.setFieldValue('payment_status', e.target.checked)}
+                                        color="primary"
+                                    />
+                                }
+                                label={
+                                    factura?.payment_status
+                                        ? 'Estado del pago (no reversible)'
+                                        : 'Estado del pago'
+                                }
                             />
-                        }
-                        label="Estado del pago"
-                    />
+
+                            {/* Descuento */}
+                            <Box>
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            checked={formik.values.descuento_enabled}
+                                            disabled={isPaidNotDelivered}
+                                            onChange={(e) => {
+                                                formik.setFieldValue('descuento_enabled', e.target.checked)
+                                                if (!e.target.checked) formik.setFieldValue('descuento_porcentaje', 0)
+                                            }}
+                                            color="primary"
+                                        />
+                                    }
+                                    label="Aplicar descuento"
+                                />
+                                {formik.values.descuento_enabled && (
+                                    <TextField
+                                        label="Porcentaje de descuento"
+                                        name="descuento_porcentaje"
+                                        type="number"
+                                        value={formik.values.descuento_porcentaje}
+                                        onChange={formik.handleChange}
+                                        inputProps={{ min: 0, max: 100, step: 0.1 }}
+                                        disabled={isPaidNotDelivered}
+                                        fullWidth
+                                        size="small"
+                                        InputProps={{
+                                            endAdornment: <InputAdornment position="end">%</InputAdornment>
+                                        }}
+                                        sx={{ mt: 1 }}
+                                    />
+                                )}
+                            </Box>
+
+                            {/* ITBMS */}
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={formik.values.itbms_enabled}
+                                        disabled={isPaidNotDelivered}
+                                        onChange={(e) => formik.setFieldValue('itbms_enabled', e.target.checked)}
+                                        color="primary"
+                                    />
+                                }
+                                label="ITBMS (7%)"
+                            />
+                        </>
+                    )}
 
                     {/* Selector de paquetes */}
                     <Box>
-                        {
-                            clientDetail ? (<PaqueteTableSelection formik={formik} />) : null
-                        }
+                        {!formik.values.cliente_id ? (
+                            <Box sx={{
+                                p: 3,
+                                textAlign: 'center',
+                                backgroundColor: 'rgba(244, 178, 35, 0.1)',
+                                borderRadius: 1,
+                                border: '1px solid rgba(244, 178, 35, 0.3)'
+                            }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    Seleccione un cliente para ver los paquetes disponibles
+                                </Typography>
+                            </Box>
+                        ) : loadingClient ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                                <CircularProgress size={24} />
+                            </Box>
+                        ) : clientDetail ? (
+                            <>
+                                {factura && (factura.delivery_status || factura.payment_status) && (
+                                    <Alert severity="info" sx={{ mb: 1 }}>
+                                        Los paquetes no se pueden modificar porque la factura ya fue{' '}
+                                        {factura.delivery_status && factura.payment_status
+                                            ? 'entregada y pagada'
+                                            : factura.delivery_status
+                                                ? 'entregada'
+                                                : 'pagada'
+                                        }.
+                                    </Alert>
+                                )}
+                                <PaqueteTableSelection
+                                    formik={formik}
+                                    editable={!factura || (!factura.delivery_status && !factura.payment_status)}
+                                    emisorSucursalId={formik.values.sucursal_id || undefined}
+                                />
+                            </>
+                        ) : (
+                            <Box sx={{
+                                p: 3,
+                                textAlign: 'center',
+                                backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                borderRadius: 1,
+                                border: '1px solid rgba(244, 67, 54, 0.3)'
+                            }}>
+                                <Typography variant="body2" color="error">
+                                    Error al cargar los datos del cliente
+                                </Typography>
+                            </Box>
+                        )}
                     </Box>
 
                     {/* Resumen calculado */}
@@ -246,14 +473,24 @@ export default function FacturaModal({ open, onClose, factura }) {
                             <Typography variant="body2">Subtotal</Typography>
                             <Typography variant="body2">${subtotal.toFixed(2)}</Typography>
 
-                            <Typography variant="body2">Descuento</Typography>
-                            <Typography variant="body2">${descuento.toFixed(2)}</Typography>
+                            <Typography variant="body2" sx={{ color: descuentoAmount > 0 ? '#f4b223' : 'text.secondary' }}>
+                                Descuento{formik.values.descuento_enabled && formik.values.descuento_porcentaje > 0
+                                    ? ` (${formik.values.descuento_porcentaje}%)`
+                                    : ''}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: descuentoAmount > 0 ? '#f4b223' : 'text.secondary' }}>
+                                -${descuentoAmount.toFixed(2)}
+                            </Typography>
 
                             <Typography variant="body2">Otros</Typography>
                             <Typography variant="body2">${otros.toFixed(2)}</Typography>
 
-                            <Typography variant="body2">Impuestos</Typography>
-                            <Typography variant="body2">${impuestos.toFixed(2)}</Typography>
+                            <Typography variant="body2" sx={{ color: itbmsAmount > 0 ? '#f4b223' : 'text.secondary' }}>
+                                ITBMS{formik.values.itbms_enabled ? ' (7%)' : ''}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: itbmsAmount > 0 ? '#f4b223' : 'text.secondary' }}>
+                                +${itbmsAmount.toFixed(2)}
+                            </Typography>
 
                             <Divider sx={{ gridColumn: '1 / -1', my: 1 }} />
                             <Typography variant="subtitle2">Total</Typography>

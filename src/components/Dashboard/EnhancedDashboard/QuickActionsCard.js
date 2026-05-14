@@ -1,13 +1,13 @@
 // components/Dashboard/EnhancedDashboard/QuickActionsCard.js
 'use client'
 
-import { Box, Button, Typography } from '@mui/material'
-import {
-  Add as AddIcon,
-  LocalShipping as ShippingIcon,
-  Receipt as ReceiptIcon,
-  People as PeopleIcon,
-} from '@mui/icons-material'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Typography from '@mui/material/Typography'
+import AddIcon from '@mui/icons-material/Add'
+import ShippingIcon from '@mui/icons-material/LocalShipping'
+import ReceiptIcon from '@mui/icons-material/Receipt'
+import PeopleIcon from '@mui/icons-material/People'
 import { useRouter } from 'next/navigation'
 import { memo } from 'react'
 

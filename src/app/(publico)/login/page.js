@@ -1,7 +1,9 @@
 "use client"
 
 import LoginForm from "@/components/Form/LoginForm"
-import { Box, Typography, alpha } from "@mui/material"
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import { alpha } from '@mui/system'
 
 export default function LoginPage() {
   return (

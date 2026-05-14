@@ -5,60 +5,237 @@ import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 
-export const usePaquetes = () => {
+export const usePaquetes = ({ soloDisponibles = false, localPage, localLimit, sucursalId: sucursalIdOverride } = {}) => {
     const searchParams = useSearchParams()
     const { session, loading } = useSession()
 
-    const page = Number(searchParams.get('page')) || 1
-    const limit = Number(searchParams.get('limit')) || 10
+    const page = localPage ?? (Number(searchParams.get('page')) || 1)
+    const limit = localLimit ?? (Number(searchParams.get('limit')) || 10)
 
     const factura_id = searchParams.get('factura_id') || ''
     const tipo = searchParams.get('tipo') || ''
     const codigo = searchParams.get('codigo') || ''
+    const sucursalFilter = searchParams.get('sucursal_id') || ''
+    const estado = searchParams.get('estado') || ''
+    const orderBy = searchParams.get('orderBy') || 'codigo'
+    const orderDir = searchParams.get('orderDir') || 'desc'
 
     const offset = (page - 1) * limit
 
-    // clave incluye receptor para revalidar al cambiar de sucursal
-    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, receptor: session?.sucursal?.id }]
+    // For branch-scoped queries, prefer explicit override (SuperAdmin selecting emisor),
+    // then fall back to the session branch (Admin/Operador).
+    const activeSucursalId = sucursalIdOverride ?? session?.sucursal?.id
+
+    const queryKey = ['paquetes', { page, limit, factura_id, tipo, codigo, sucursalFilter, estado, orderBy, orderDir, sucursal: activeSucursalId, soloDisponibles }]
 
     const queryFn = async () => {
-        if (!session?.sucursal?.id) return { data: [], count: 0 }
+        // ─── SuperAdmin: vista global de todos los paquetes ─────────────────────
+        if (session.role.id === 1 && !soloDisponibles) {
+            let countQuery = supabase
+                .from('proveedor_paquetes')
+                .select('id', { count: 'exact', head: true })
 
-        // 1) transferencia_sucursal -> IDs
+            let rowsQuery = supabase
+                .from('proveedor_paquetes')
+                .select('*, sucursal_origen:sucursal!proveedor_paquetes_sucursal_origen_id_fkey(id, name)')
+
+            if (tipo) {
+                countQuery = countQuery.ilike('tipo', `%${tipo}%`)
+                rowsQuery = rowsQuery.ilike('tipo', `%${tipo}%`)
+            }
+            if (codigo) {
+                countQuery = countQuery.ilike('codigo', `%${codigo}%`)
+                rowsQuery = rowsQuery.ilike('codigo', `%${codigo}%`)
+            }
+            if (sucursalFilter) {
+                countQuery = countQuery.eq('sucursal_origen_id', sucursalFilter)
+                rowsQuery = rowsQuery.eq('sucursal_origen_id', sucursalFilter)
+            }
+
+            // ─── Filtro estado (SuperAdmin) ──────────────────────────────────────
+            if (estado === 'facturado' || estado === 'no_facturado') {
+                const { data: fdAll } = await supabase.from('factura_detalle').select('paquete_id')
+                const fdCodigos = (fdAll ?? []).map(r => r.paquete_id)
+                if (estado === 'facturado') {
+                    if (!fdCodigos.length) return { data: [], count: 0 }
+                    countQuery = countQuery.in('codigo', fdCodigos)
+                    rowsQuery  = rowsQuery.in('codigo', fdCodigos)
+                } else {
+                    if (fdCodigos.length) {
+                        countQuery = countQuery.not('codigo', 'in', fdCodigos)
+                        rowsQuery  = rowsQuery.not('codigo', 'in', fdCodigos)
+                    }
+                }
+            } else if (estado === 'en_transferencia_activa' || estado === 'transferencia_recibida') {
+                const { data: tsRows } = await supabase
+                    .from('transferencia_sucursal')
+                    .select('id')
+                    .eq('delivery_status', estado === 'transferencia_recibida')
+                if (!tsRows?.length) return { data: [], count: 0 }
+                const { data: spRows } = await supabase
+                    .from('solicitud_paquete')
+                    .select('paquete_id')
+                    .in('transferencia_id', tsRows.map(r => r.id))
+                const estadoCodigos = (spRows ?? []).map(r => r.paquete_id)
+                if (!estadoCodigos.length) return { data: [], count: 0 }
+                countQuery = countQuery.in('codigo', estadoCodigos)
+                rowsQuery  = rowsQuery.in('codigo', estadoCodigos)
+            }
+
+            rowsQuery = rowsQuery
+                .order(orderBy, { ascending: orderDir === 'asc' })
+                .range(offset, offset + limit - 1)
+
+            const [
+                { count, error: countError },
+                { data: rows, error: rowsError }
+            ] = await Promise.all([countQuery, rowsQuery])
+
+            if (countError) throw countError
+            if (rowsError) throw rowsError
+
+            const codigos = (rows ?? []).map(r => r.codigo)
+            let codigosFacturados = new Set()
+            if (codigos.length > 0) {
+                const { data: facturadosData } = await supabase
+                    .from('factura_detalle')
+                    .select('paquete_id')
+                    .in('paquete_id', codigos)
+                codigosFacturados = new Set((facturadosData ?? []).map(d => d.paquete_id))
+            }
+
+            return {
+                data: (rows ?? []).map(row => ({ ...row, facturado: codigosFacturados.has(row.codigo) })),
+                count: count ?? 0
+            }
+        }
+
+        if (!activeSucursalId) return { data: [], count: 0 }
+
+        // ─── PATH A: paquetes recibidos via transferencia ───────────────────────
         let tsQuery = supabase
             .from('transferencia_sucursal')
             .select('id')
-            .eq('receptor_sucursal_id', session.sucursal.id)
+            .eq('receptor_sucursal_id', activeSucursalId)
+            .eq('delivery_status', true)  // Solo transferencias ya recibidas
+
+        // Solo incluimos transferencias cuya entrega fue confirmada (delivery_status=true).
+        // Paquetes en transferencias pendientes (en tránsito) no están disponibles
+        // hasta que la transferencia sea marcada como recibida.
+        // Transferencias canceladas eliminan sus solicitud_paquete al cancelarse,
+        // por lo que no aparecen aquí.
 
         if (factura_id) tsQuery = tsQuery.ilike('factura_id', `%${factura_id}%`)
 
-        const { data: tsRows, error: tsError } = await tsQuery
+        // ─── PATH B: paquetes registrados directamente en esta sucursal ─────────
+        // Paquetes con sucursal_origen_id = esta sucursal y sin ninguna solicitud_paquete
+        const directQuery = supabase
+            .from('proveedor_paquetes')
+            .select('codigo, solicitud_paquete:solicitud_paquete(paquete_id)')
+            .eq('sucursal_origen_id', activeSucursalId)
+            .is('solicitud_paquete.paquete_id', null)
+
+        // Ejecutar ambas queries en paralelo
+        const [{ data: tsRows, error: tsError }, { data: directRaw }] = await Promise.all([
+            tsQuery,
+            directQuery,
+        ])
+
         if (tsError) throw tsError
 
+        // Códigos de paquetes registrados directamente
+        const codigosDirectos = (directRaw ?? []).map(r => r.codigo)
+
+        // Códigos de paquetes recibidos via transferencia
+        let codigosTransferidos = []
         const solicitudIds = (tsRows ?? []).map(r => r.id)
-        if (solicitudIds.length === 0) return { data: [], count: 0 }
 
-        // 2) solicitud_paquete -> paquete_id (limitamos con RANGE para acelerar)
-        //    Usamos una ventana dinámica que garantice suficientes candidatos para paginar.
-        //    Heurística: traer hasta (offset + limit*4) filas (capadas por un máximo duro).
-        const SP_MULTIPLIER = 4
-        const SP_HARD_CAP = 4000
-        const spUpperBound = Math.min(offset + limit * SP_MULTIPLIER, SP_HARD_CAP) - 1
+        if (solicitudIds.length > 0) {
+            const SP_HARD_CAP = 4000
 
-        let spQuery = supabase
-            .from('solicitud_paquete')
-            .select('paquete_id, transferencia_id')
-            .in('transferencia_id', solicitudIds)
-            .order('transferencia_id', { ascending: false }) // determinismo (más recientes primero)
-            .range(0, Math.max(spUpperBound, 0))
+            const { data: spRows, error: spError } = await supabase
+                .from('solicitud_paquete')
+                .select('paquete_id')
+                .in('transferencia_id', solicitudIds)
+                .order('transferencia_id', { ascending: false })
+                .range(0, SP_HARD_CAP - 1)
 
-        const { data: spRows, error: spError } = await spQuery
-        if (spError) throw spError
+            if (spError) throw spError
+            codigosTransferidos = (spRows ?? []).map(r => r.paquete_id)
+        }
 
-        const paqueteCodigos = Array.from(new Set((spRows ?? []).map(r => r.paquete_id)))
+        // Unión de ambas fuentes (sin duplicados)
+        let paqueteCodigos = [...new Set([...codigosTransferidos, ...codigosDirectos])]
+
+        // ─── Filtro estado (non-admin, !soloDisponibles) ─────────────────────────
+        if (!soloDisponibles && estado) {
+            if (estado === 'en_transferencia_activa') {
+                // Paquetes en transferencias activas donde esta sucursal es emisora o receptora
+                const { data: activeTsRows } = await supabase
+                    .from('transferencia_sucursal')
+                    .select('id')
+                    .or(`emisor_sucursal_id.eq.${activeSucursalId},receptor_sucursal_id.eq.${activeSucursalId}`)
+                    .eq('delivery_status', false)
+                if (!activeTsRows?.length) return { data: [], count: 0 }
+                const { data: spRows } = await supabase
+                    .from('solicitud_paquete')
+                    .select('paquete_id')
+                    .in('transferencia_id', activeTsRows.map(r => r.id))
+                paqueteCodigos = (spRows ?? []).map(r => r.paquete_id)
+            } else if (estado === 'transferencia_recibida') {
+                // Solo paquetes que llegaron vía transferencia recibida (PATH A)
+                paqueteCodigos = codigosTransferidos
+            } else if (estado === 'facturado' || estado === 'no_facturado') {
+                if (paqueteCodigos.length > 0) {
+                    const { data: fdRows } = await supabase
+                        .from('factura_detalle')
+                        .select('paquete_id')
+                        .in('paquete_id', paqueteCodigos)
+                    const fdSet = new Set((fdRows ?? []).map(r => r.paquete_id))
+                    paqueteCodigos = estado === 'facturado'
+                        ? paqueteCodigos.filter(c => fdSet.has(c))
+                        : paqueteCodigos.filter(c => !fdSet.has(c))
+                }
+            }
+        }
+
         if (paqueteCodigos.length === 0) return { data: [], count: 0 }
 
-        // 3a) COUNT exacto en proveedor_paquetes sobre el subconjunto de códigos + filtros finales
+        // ─── EXCLUSIONES (solo cuando soloDisponibles) ───────────────────────────
+        if (soloDisponibles) {
+            // Paquetes en transferencias salientes activas desde esta sucursal
+            const { data: outgoingTs } = await supabase
+                .from('transferencia_sucursal')
+                .select('id')
+                .eq('emisor_sucursal_id', activeSucursalId)
+                .eq('delivery_status', false)
+
+            const [enTransitoData, facturadosData] = await Promise.all([
+                outgoingTs?.length > 0
+                    ? supabase
+                        .from('solicitud_paquete')
+                        .select('paquete_id')
+                        .in('transferencia_id', outgoingTs.map(r => r.id))
+                        .in('paquete_id', paqueteCodigos)
+                        .then(r => r.data)
+                    : Promise.resolve([]),
+                supabase
+                    .from('factura_detalle')
+                    .select('paquete_id')
+                    .in('paquete_id', paqueteCodigos)
+                    .then(r => r.data),
+            ])
+
+            const codigosExcluidos = new Set([
+                ...(enTransitoData ?? []).map(r => r.paquete_id),
+                ...(facturadosData ?? []).map(r => r.paquete_id),
+            ])
+
+            paqueteCodigos = paqueteCodigos.filter(c => !codigosExcluidos.has(c))
+            if (paqueteCodigos.length === 0) return { data: [], count: 0 }
+        }
+
+        // ─── FETCH PAGINADO ──────────────────────────────────────────────────────
         let countQuery = supabase
             .from('proveedor_paquetes')
             .select('id', { count: 'exact', head: true })
@@ -67,10 +244,6 @@ export const usePaquetes = () => {
         if (tipo) countQuery = countQuery.ilike('tipo', `%${tipo}%`)
         if (codigo) countQuery = countQuery.ilike('codigo', `%${codigo}%`)
 
-        const { count, error: countError } = await countQuery
-        if (countError) throw countError
-
-        // 3b) PAGE de filas en proveedor_paquetes (paginación real en el subconjunto)
         let rowsQuery = supabase
             .from('proveedor_paquetes')
             .select('*')
@@ -80,13 +253,44 @@ export const usePaquetes = () => {
         if (codigo) rowsQuery = rowsQuery.ilike('codigo', `%${codigo}%`)
 
         rowsQuery = rowsQuery
-            .order('id', { ascending: false })       // orden estable
-            .range(offset, offset + limit - 1)       // paginación real
+            .order(orderBy, { ascending: orderDir === 'asc' })
+            .range(offset, offset + limit - 1)
 
-        const { data: rows, error: rowsError } = await rowsQuery
-        if (rowsError) throw rowsError
+        if (soloDisponibles) {
+            const [
+                { count, error: countError },
+                { data: rows, error: rowsError }
+            ] = await Promise.all([countQuery, rowsQuery])
 
-        return { data: rows ?? [], count: count ?? 0 }
+            if (countError) throw countError
+            if (rowsError) throw rowsError
+
+            return { data: rows ?? [], count: count ?? 0 }
+        } else {
+            // Tabla general: muestra todos marcando cuáles están facturados
+            const facturadosQuery = supabase
+                .from('factura_detalle')
+                .select('paquete_id')
+                .in('paquete_id', paqueteCodigos)
+
+            const [
+                { count, error: countError },
+                { data: rows, error: rowsError },
+                { data: facturadosData }
+            ] = await Promise.all([countQuery, rowsQuery, facturadosQuery])
+
+            if (countError) throw countError
+            if (rowsError) throw rowsError
+
+            const codigosFacturados = new Set((facturadosData ?? []).map(item => item.paquete_id))
+
+            const rowsConFacturado = (rows ?? []).map(row => ({
+                ...row,
+                facturado: codigosFacturados.has(row.codigo)
+            }))
+
+            return { data: rowsConFacturado, count: count ?? 0 }
+        }
     }
 
     const { data, isLoading, isError, error } = useQuery({
@@ -106,6 +310,8 @@ export const usePaquetes = () => {
         factura_id,
         tipo,
         codigo,
+        orderBy,
+        orderDir,
         count: data?.count || 0
     }
 }

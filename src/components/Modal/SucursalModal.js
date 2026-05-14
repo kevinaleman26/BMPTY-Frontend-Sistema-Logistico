@@ -1,29 +1,35 @@
 import { useMutateSucursal } from '@/hooks/useMutateSucursal'
-import {
-    Alert,
-    Box,
-    Button,
-    Dialog,
-    DialogContent,
-    DialogTitle,
-    FormControlLabel,
-    Snackbar,
-    Switch,
-    TextField
-} from '@mui/material'
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Snackbar from '@mui/material/Snackbar'
+import Switch from '@mui/material/Switch'
+import TextField from '@mui/material/TextField'
 import { useFormik } from 'formik'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 export default function SucursalModal({ open, onClose, sucursal }) {
 
     const { createSucursal, updateSucursal } = useMutateSucursal()
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
 
+    const handleSnackbarClose = useCallback(() => {
+        setSnackbar(prev => ({ ...prev, open: false }))
+    }, [])
+
     const formik = useFormik({
         initialValues: {
             name: sucursal?.name || '',
             address: sucursal?.address || '',
             tasa: sucursal?.tasa || '',
+            ruc: sucursal?.ruc || '',
+            razon_social: sucursal?.razon_social || '',
+            telefono: sucursal?.telefono || '',
+            email: sucursal?.email || '',
             status: sucursal?.status ?? true
         },
         enableReinitialize: true,
@@ -76,12 +82,44 @@ export default function SucursalModal({ open, onClose, sucursal }) {
                             fullWidth
                         />
                         <TextField
-                            label="Tasa"
+                            label="Tasa (precio/LB)"
                             name="tasa"
                             type="number"
                             value={formik.values.tasa}
                             onChange={formik.handleChange}
                             fullWidth
+                        />
+                        <TextField
+                            label="RUC"
+                            name="ruc"
+                            value={formik.values.ruc}
+                            onChange={formik.handleChange}
+                            fullWidth
+                        />
+                        <TextField
+                            label="Razón Social"
+                            name="razon_social"
+                            value={formik.values.razon_social}
+                            onChange={formik.handleChange}
+                            fullWidth
+                            placeholder="Ej: BMPTY CARGO S.A."
+                        />
+                        <TextField
+                            label="Teléfono"
+                            name="telefono"
+                            value={formik.values.telefono}
+                            onChange={formik.handleChange}
+                            fullWidth
+                            placeholder="Ej: +507 6000-0000"
+                        />
+                        <TextField
+                            label="Email"
+                            name="email"
+                            type="email"
+                            value={formik.values.email}
+                            onChange={formik.handleChange}
+                            fullWidth
+                            placeholder="Ej: info@bmpty.com"
                         />
                         <FormControlLabel
                             control={
@@ -109,14 +147,15 @@ export default function SucursalModal({ open, onClose, sucursal }) {
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={3000}
-                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                onClose={handleSnackbarClose}
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                sx={{ zIndex: (theme) => theme.zIndex.modal + 1 }}
             >
                 <Alert
                     elevation={6}
                     variant="filled"
                     severity={snackbar.severity}
-                    onClose={() => setSnackbar({ ...snackbar, open: false })}
+                    onClose={handleSnackbarClose}
                 >
                     {snackbar.message}
                 </Alert>

@@ -1,7 +1,12 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { Alert, Box, Button, CircularProgress, TextField, alpha } from '@mui/material'
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import CircularProgress from '@mui/material/CircularProgress'
+import TextField from '@mui/material/TextField'
+import { alpha } from '@mui/system'
 import { Form, Formik } from 'formik'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'

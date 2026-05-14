@@ -14,15 +14,18 @@ export const useOperadores = () => {
     const full_name = searchParams.get('full_name') || ''
     const email = searchParams.get('email') || ''
     const role_id = searchParams.get('role_id') || ''
+    const orderBy = searchParams.get('orderBy') || 'full_name'
+    const orderDir = searchParams.get('orderDir') || 'asc'
 
     const offset = (page - 1) * limit
 
-    const queryKey = ['operadores', { page, limit, full_name, email, role_id }]
+    const queryKey = ['operadores', { page, limit, full_name, email, role_id, orderBy, orderDir }]
 
     const queryFn = async () => {
 
         let query = supabase.from('operador')
             .select('id, full_name, email, sucursal_id, role_id, role(name)', { count: 'exact' })
+            .order(orderBy, { ascending: orderDir === 'asc' })
             .range(offset, offset + limit - 1)
 
         if (session.role.id === 2) query = query.eq("sucursal_id", session.sucursal_id)
@@ -48,6 +51,8 @@ export const useOperadores = () => {
         full_name,
         email,
         role_id,
+        orderBy,
+        orderDir,
         count: data?.count || 0
     }
 }

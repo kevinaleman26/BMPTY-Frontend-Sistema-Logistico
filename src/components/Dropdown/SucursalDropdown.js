@@ -1,7 +1,9 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { FormHelperText, MenuItem, TextField } from '@mui/material'
+import FormHelperText from '@mui/material/FormHelperText'
+import MenuItem from '@mui/material/MenuItem'
+import TextField from '@mui/material/TextField'
 import { useQuery } from '@tanstack/react-query'
 
 export default function SucursalDropdown({ name, value, onChange, error, helperText }) {

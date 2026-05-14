@@ -1,9 +1,9 @@
 import ListItemLink from '@/components/List/Item/ListItemLink'
-import { List } from '@mui/material'
+import List from '@mui/material/List'
 
 const SuperAdminMenu = () => {
   return (
-    <List >
+    <List>
       <ListItemLink href="/dashboard" primary="Dashboard" />
       <ListItemLink href="/sucursal?page=1&limit=10" primary="Sucursales" />
       <ListItemLink href="/operador?page=1&limit=10" primary="Operadores" />

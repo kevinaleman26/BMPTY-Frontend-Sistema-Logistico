@@ -1,30 +1,44 @@
 'use client'
 
-
-import ClienteModal from '@/components/Modal/ClienteModal'
 import ClienteTable from '@/components/Table/ClienteTable'
-import AddIcon from '@mui/icons-material/Add'
-import { Box, Button, Typography } from '@mui/material'
-import { useState } from 'react'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Typography from '@mui/material/Typography'
+import CircularProgress from '@mui/material/CircularProgress'
+import dynamic from 'next/dynamic'
+import { useState, useCallback } from 'react'
+import { AddIcon } from '@/components/Icons'
+
+
+// ⚡ Lazy load modal pesado (242 líneas)
+// Solo se carga cuando se abre el modal
+const ClienteModal = dynamic(() => import('@/components/Modal/ClienteModal'), {
+    loading: () => (
+        <Box display="flex" justifyContent="center" alignItems="center" p={4}>
+            <CircularProgress />
+        </Box>
+    ),
+    ssr: false
+})
 
 export default function ClientePage() {
     const [open, setOpen] = useState(false)
     const [clienteEdit, setClienteEdit] = useState(null)
 
-    const handleOpen = () => {
+    const handleOpen = useCallback(() => {
         setClienteEdit(null)
         setOpen(true)
-    }
+    }, [])
 
-    const handleEdit = (cliente) => {
+    const handleEdit = useCallback((cliente) => {
         setClienteEdit(cliente)
         setOpen(true)
-    }
+    }, [])
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setOpen(false)
         setClienteEdit(null)
-    }
+    }, [])
 
     return (
         <Box sx={{ px: 4, py: 2 }}>

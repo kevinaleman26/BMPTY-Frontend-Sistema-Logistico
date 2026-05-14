@@ -1,4 +1,31 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  reactStrictMode: true,
 
-export default nextConfig;
+  // Image optimization
+  images: {
+    formats: ['image/webp', 'image/avif'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+    ],
+  },
+
+  // Experimental optimizations
+  experimental: {
+    // Optimize package imports to reduce bundle size
+    optimizePackageImports: ['@mui/material', '@mui/icons-material', '@mui/x-data-grid', '@mui/x-charts'],
+  },
+
+  // Compiler options
+  compiler: {
+    // Remove console logs in production
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
+  },
+}
+
+export default nextConfig

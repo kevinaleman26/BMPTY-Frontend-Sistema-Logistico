@@ -1,6 +1,7 @@
 'use client'
 
-import { Box, Typography } from '@mui/material'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
 import InboxIcon from '@mui/icons-material/Inbox'
 
 /**

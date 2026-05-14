@@ -18,10 +18,12 @@ export const useTransferencias = () => {
     const receptor_sucursal = searchParams.get('receptor_sucursal') || ''
     const delivery_status = searchParams.get('delivery_status') || ''
     const payment_status = searchParams.get('payment_status') || ''
+    const orderBy = searchParams.get('orderBy') || 'created_at'
+    const orderDir = searchParams.get('orderDir') || 'desc'
 
     const offset = (page - 1) * limit
 
-    const queryKey = ['transferencias', { page, limit, factura_id, metodo_pago, emisor_sucursal, receptor_sucursal, delivery_status, payment_status }]
+    const queryKey = ['transferencias', { page, limit, factura_id, metodo_pago, emisor_sucursal, receptor_sucursal, delivery_status, payment_status, orderBy, orderDir }]
 
     const queryFn = async () => {
         // Obtener ID de la sucursal "ROBOT" para excluirla
@@ -33,15 +35,27 @@ export const useTransferencias = () => {
 
         let query;
         if (session.role.id !== 1) {
+            // Admin/Operador: Ver transferencias emitidas O recibidas por su sucursal
             query = supabase
                 .from('transferencia_sucursal')
                 .select(`
                 id,
+                total,
+                tasa,
                 delivery_status,
                 payment_status,
                 delivery_date,
                 payment_date,
                 created_at,
+                received_at,
+                operador_emisor:operador!transferencia_sucursal_operador_emisor_id_fkey (
+                    id,
+                    full_name
+                ),
+                operador_receptor:operador!transferencia_sucursal_operador_receptor_id_fkey (
+                    id,
+                    full_name
+                ),
                 metodo_pago (
                     id,
                     name
@@ -55,21 +69,40 @@ export const useTransferencias = () => {
                     name
                 ),
                 solicitud_paquete:solicitud_paquete!solicitud_paquete_transferencia_id_fkey (
-                    paquete_id
+                    paquete_id,
+                    paquete:proveedor_paquetes!solicitud_paquete_paquete_id_fkey (
+                        codigo,
+                        peso,
+                        precio,
+                        tipo
+                    )
                 )
             `, { count: 'exact' })
+                .order(orderBy, { ascending: orderDir === 'asc' })
                 .range(offset, offset + limit - 1)
-                .eq("emisor_sucursal_id", session.sucursal.id)
+                .or(`emisor_sucursal_id.eq.${session.sucursal.id},receptor_sucursal_id.eq.${session.sucursal.id}`)
         } else {
+            // SuperAdmin: Ver todas las transferencias
             query = supabase
                 .from('transferencia_sucursal')
                 .select(`
                 id,
+                total,
+                tasa,
                 delivery_status,
                 payment_status,
                 delivery_date,
                 payment_date,
                 created_at,
+                received_at,
+                operador_emisor:operador!transferencia_sucursal_operador_emisor_id_fkey (
+                    id,
+                    full_name
+                ),
+                operador_receptor:operador!transferencia_sucursal_operador_receptor_id_fkey (
+                    id,
+                    full_name
+                ),
                 metodo_pago (
                     id,
                     name
@@ -83,9 +116,16 @@ export const useTransferencias = () => {
                     name
                 ),
                 solicitud_paquete:solicitud_paquete!solicitud_paquete_transferencia_id_fkey (
-                    paquete_id
+                    paquete_id,
+                    paquete:proveedor_paquetes!solicitud_paquete_paquete_id_fkey (
+                        codigo,
+                        peso,
+                        precio,
+                        tipo
+                    )
                 )
             `, { count: 'exact' })
+                .order(orderBy, { ascending: orderDir === 'asc' })
                 .range(offset, offset + limit - 1)
         }
 
@@ -124,6 +164,8 @@ export const useTransferencias = () => {
         receptor_sucursal,
         delivery_status,
         payment_status,
+        orderBy,
+        orderDir,
         count: data?.count || 0
     }
 }

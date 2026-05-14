@@ -1,7 +1,9 @@
 // components/Dashboard/EnhancedDashboard/MetricCard.js
 'use client'
 
-import { Box, Typography, Skeleton } from '@mui/material'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import Skeleton from '@mui/material/Skeleton'
 import { memo } from 'react'
 
 /**

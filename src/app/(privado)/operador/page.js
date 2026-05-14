@@ -1,30 +1,43 @@
 'use client'
 
-
-import OperadorModal from '@/components/Modal/OperadorModal'
 import OperadorTable from '@/components/Table/OperadorTable'
-import AddIcon from '@mui/icons-material/Add'
-import { Box, Button, Typography } from '@mui/material'
-import { useState } from 'react'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import Typography from '@mui/material/Typography'
+import CircularProgress from '@mui/material/CircularProgress'
+import dynamic from 'next/dynamic'
+import { useState, useCallback } from 'react'
+import { AddIcon } from '@/components/Icons'
+
+
+// ⚡ Lazy load modal (122 líneas)
+const OperadorModal = dynamic(() => import('@/components/Modal/OperadorModal'), {
+    loading: () => (
+        <Box display="flex" justifyContent="center" alignItems="center" p={4}>
+            <CircularProgress size={24} />
+        </Box>
+    ),
+    ssr: false
+})
 
 export default function OperadorPage() {
     const [modalOpen, setModalOpen] = useState(false)
     const [selectedOperador, setSelectedOperador] = useState(null)
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setModalOpen(false)
         setSelectedOperador(null)
-    }
+    }, [])
 
-    const handleEdit = (operador) => {
+    const handleEdit = useCallback((operador) => {
         setSelectedOperador(operador)
         setModalOpen(true)
-    }
+    }, [])
 
-    const newOperator = () => {
+    const newOperator = useCallback(() => {
         setSelectedOperador(null)
         setModalOpen(true)
-    }
+    }, [])
 
     return (
         <Box>

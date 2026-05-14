@@ -1,7 +1,9 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { CircularProgress, MenuItem, TextField } from '@mui/material'
+import CircularProgress from '@mui/material/CircularProgress'
+import MenuItem from '@mui/material/MenuItem'
+import TextField from '@mui/material/TextField'
 import { useQuery } from '@tanstack/react-query'
 
 export default function DocumentTypeDropdown({ value, onChange, name, error }) {

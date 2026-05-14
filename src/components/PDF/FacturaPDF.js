@@ -1,200 +1,402 @@
-// components/pdf/NotaEntregaPDF.jsx
+// components/pdf/FacturaPDF.js
 import {
-    Document,
-    Image,
-    Page,
-    StyleSheet,
-    Text,
-    View
-} from '@react-pdf/renderer';
+  Document,
+  Image,
+  Page,
+  StyleSheet,
+  Text,
+  View,
+} from "@react-pdf/renderer";
 
 const styles = StyleSheet.create({
-    page: {
-        paddingTop: 5,
-        paddingHorizontal: 28,
-        paddingBottom: 10,
-        fontFamily: 'Helvetica',
-        fontSize: 10,
-        lineHeight: 1.35
-    },
-    headerBlock: {
-        flexDirection: 'row', // ahora en fila
-        justifyContent: 'space-between', // título a la izquierda, logo a la derecha
-        alignItems: 'center'
-    },
-    titleContainer: {
-        flexDirection: 'column'
-    },
-    titleLine: {
-        fontSize: 30,
-        fontWeight: 'bold',
-        lineHeight: 1
-    },
-    logo: {
-        width: 180,  // ajusta tamaño según tu necesidad
-        height: 160,
-        objectFit: 'contain'
-    },
-    subTitleLine: {
-        fontSize: 12,
-        fontWeight: 'bold'
-    },
-    metaBlock: {
-        marginBottom: 12
-    },
-    metaRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap'
-    },
-    metaText: {
-        fontSize: 10
-    },
-    bold: { fontWeight: 'bold' },
+  page: {
+    paddingTop: 20,
+    paddingHorizontal: 28,
+    paddingBottom: 20,
+    fontFamily: "Helvetica",
+    fontSize: 10,
+    lineHeight: 1.35,
+  },
 
-    table: {
-        borderTopWidth: 1,
-        borderTopColor: '#000',
-        borderTopStyle: 'solid',
-        borderBottomWidth: 1,
-        borderBottomColor: '#000',
-        borderBottomStyle: 'solid',
-    },
-    thead: {
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: '#000',
-        borderBottomStyle: 'solid',
-        paddingVertical: 4,
-        backgroundColor: '#1256c4',
-        color: '#fff'
-    },
-    tbodyRow: {
-        flexDirection: 'row',
-        paddingVertical: 6,
-        borderBottomWidth: 0.6,
-        borderBottomColor: '#dcdcdc',
-        borderBottomStyle: 'solid'
-    },
-    colTracking: { width: '58%', textAlign: 'center' },
-    colPeso: { width: '14%', textAlign: 'center', paddingRight: 6 },
-    colPrecio: { width: '14%', textAlign: 'center', paddingRight: 6 },
-    colTotal: { width: '14%', textAlign: 'center' },
-    th: { fontWeight: 'bold' },
-    totalsBlock: {
-        marginTop: 10,
-        alignSelf: 'flex-end',
-        width: '35%',
-    },
-    totalRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingVertical: 2
-    },
-    totalLabel: {},
-    totalValue: { fontWeight: 'bold' },
-    disclaimer: {
-        marginTop: 14,
-        fontSize: 9,
-        textAlign: 'left'
-    }
+  // ── Header ──────────────────────────────────────────────────────────────
+  headerBlock: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1256c4",
+    paddingBottom: 10,
+  },
+
+  // LEFT: título + info cliente
+  leftHeader: {
+    flexDirection: "column",
+    flex: 1,
+    paddingRight: 16,
+  },
+  titleLine: {
+    fontSize: 26,
+    fontWeight: "bold",
+    lineHeight: 1,
+    color: "#1256c4",
+  },
+  docType: {
+    fontSize: 9,
+    color: "#666",
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  clientBlock: {
+    marginTop: 6,
+  },
+  clientLabel: {
+    fontSize: 8,
+    color: "#888",
+    textTransform: "uppercase",
+    marginBottom: 1,
+  },
+  clientValue: {
+    fontSize: 10,
+    fontWeight: "bold",
+    marginBottom: 3,
+  },
+  clientRow: {
+    flexDirection: "row",
+    marginBottom: 2,
+  },
+  clientRowLabel: {
+    fontSize: 9,
+    color: "#555",
+    width: 65,
+  },
+  clientRowValue: {
+    fontSize: 9,
+  },
+
+  // RIGHT: logo + info empresa
+  rightHeader: {
+    alignItems: "flex-end",
+    flexDirection: "column",
+    minWidth: 180,
+  },
+  logo: {
+    width: 140,
+    height: 80,
+    objectFit: "contain",
+    marginBottom: 6,
+  },
+  empresaBlock: {
+    alignItems: "flex-end",
+  },
+  empresaName: {
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#1256c4",
+    marginBottom: 2,
+  },
+  empresaRow: {
+    fontSize: 8,
+    color: "#555",
+    marginBottom: 1,
+    textAlign: "right",
+  },
+
+  // ── Divider meta ─────────────────────────────────────────────────────────
+  metaStrip: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    backgroundColor: "#f3f6fb",
+    borderRadius: 3,
+    padding: 6,
+    marginBottom: 10,
+  },
+  metaItem: {
+    flexDirection: "column",
+    alignItems: "center",
+  },
+  metaLabel: {
+    fontSize: 7,
+    color: "#888",
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
+  metaValue: {
+    fontSize: 9,
+    fontWeight: "bold",
+  },
+
+  // ── Tabla ────────────────────────────────────────────────────────────────
+  table: {
+    borderTopWidth: 1,
+    borderTopColor: "#000",
+    borderTopStyle: "solid",
+    borderBottomWidth: 1,
+    borderBottomColor: "#000",
+    borderBottomStyle: "solid",
+    marginBottom: 10,
+  },
+  thead: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#000",
+    borderBottomStyle: "solid",
+    paddingVertical: 5,
+    backgroundColor: "#1256c4",
+    color: "#fff",
+  },
+  tbodyRow: {
+    flexDirection: "row",
+    paddingVertical: 5,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#e0e0e0",
+    borderBottomStyle: "solid",
+  },
+  tbodyRowAlt: {
+    backgroundColor: "#f9fafb",
+  },
+  colNum: { width: "6%", textAlign: "center" },
+  colTracking: { width: "44%", paddingLeft: 4 },
+  colPeso: { width: "16%", textAlign: "center" },
+  colPrecio: { width: "16%", textAlign: "center" },
+  colTotal: { width: "18%", textAlign: "right", paddingRight: 4 },
+  th: { fontWeight: "bold", fontSize: 8 },
+  td: { fontSize: 9 },
+
+  // ── Totales ───────────────────────────────────────────────────────────────
+  totalsBlock: {
+    marginTop: 4,
+    alignSelf: "flex-end",
+    width: "38%",
+  },
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 2,
+    fontSize: 9,
+  },
+  totalRowFinal: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+    marginTop: 3,
+    borderTopWidth: 1,
+    borderTopColor: "#1256c4",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  totalValueFinal: {
+    color: "#1256c4",
+    fontWeight: "bold",
+  },
+
+  // ── Firma ────────────────────────────────────────────────────────────────
+  signatureBlock: {
+    marginTop: 28,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  signatureBox: {
+    width: "42%",
+    borderTopWidth: 1,
+    borderTopColor: "#000",
+    paddingTop: 6,
+  },
+  signatureLabel: {
+    fontSize: 8,
+    textAlign: "center",
+    color: "#666",
+  },
+
+  // ── Disclaimer ───────────────────────────────────────────────────────────
+  disclaimer: {
+    marginTop: 12,
+    fontSize: 8,
+    color: "#999",
+    textAlign: "center",
+    borderTopWidth: 0.5,
+    borderTopColor: "#ddd",
+    paddingTop: 6,
+  },
 });
 
 const money = (n = 0) => `$${Number(n).toFixed(2)}`;
 const lb = (n = 0) => `${Number(n).toFixed(2)} LB`;
+const fmtDate = (d) =>
+  d
+    ? new Date(d).toLocaleDateString("es-PA", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
 
 export default function NotaEntregaPDF({ data }) {
-    return (
-        <Document>
-            <Page size="A4" style={styles.page}>
-                {/* Encabezado con logo */}
-                <View style={styles.headerBlock}>
-                    <View style={styles.titleContainer}>
-                        <Text style={styles.titleLine}>NOTA DE</Text>
-                        <Text style={styles.titleLine}>ENTREGA</Text>
-                        <Text style={styles.titleLine}>SUCURSAL</Text>
-                    </View>
-                    {data.logoUrl && (
-                        <Image style={styles.logo} src={data?.logoUrl} />
-                    )}
-                </View>
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        {/* ── HEADER ──────────────────────────────────────────────── */}
+        <View style={styles.headerBlock}>
+          {/* LEFT: Título + info cliente */}
+          <View style={styles.leftHeader}>
+            <Text style={styles.titleLine}>NOTA DE</Text>
+            <Text style={styles.titleLine}>ENTREGA</Text>
+            <Text style={styles.docType}>DOCUMENTO NO FISCAL</Text>
 
-                {/* Bloque meta */}
-                <View style={styles.metaBlock}>
-                    <View style={styles.metaRow}>
-                        <Text style={[styles.metaText, styles.bold]}>
-                            DOCUMENTO NO FISCAL
-                        </Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.metaText}>
-                            RUC: {data?.ruc || ''}
-                        </Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.metaText}>
-                            Dirección: {data?.direccion || ''}
-                        </Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.metaText}>
-                            Sucursal: {data?.sucursal || ''}
-                        </Text>
-                    </View>
-                    <View style={styles.metaRow}>
-                        <Text style={styles.metaText}>
-                            Nombre del Cliente: {data?.nombreCliente || ''}
-                        </Text>
-                    </View>
-                </View>
+            <View style={styles.clientBlock}>
+              <Text style={styles.clientLabel}>Cliente</Text>
+              <Text style={styles.clientValue}>
+                {data?.nombreCliente || "—"}
+              </Text>
 
-                {/* Tabla */}
-                <View style={styles.table}>
-                    <View style={styles.thead}>
-                        <Text style={[styles.colTracking, styles.th]}>No. Tracking</Text>
-                        <Text style={[styles.colPeso, styles.th]}>Peso</Text>
-                        <Text style={[styles.colPrecio, styles.th]}>Precio por LB</Text>
-                        <Text style={[styles.colTotal, styles.th]}>Total</Text>
-                    </View>
-                    {data?.items?.map((it, idx) => (
-                        <View key={idx} style={styles.tbodyRow}>
-                            <Text style={styles.colTracking}>{it.tracking}</Text>
-                            <Text style={styles.colPeso}>{lb(it.peso)}</Text>
-                            <Text style={styles.colPrecio}>{money(it.precioLb)}</Text>
-                            <Text style={styles.colTotal}>{money(it.total)}</Text>
-                        </View>
-                    ))}
+              {data?.codigoCliente ? (
+                <View style={styles.clientRow}>
+                  <Text style={styles.clientRowLabel}>Código:</Text>
+                  <Text style={styles.clientRowValue}>
+                    {data.codigoCliente}
+                  </Text>
                 </View>
-
-                {/* Totales */}
-                <View style={styles.totalsBlock}>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Sub-Total:</Text>
-                        <Text>{money(data?.subtotal)} USD</Text>
-                    </View>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Descuento:</Text>
-                        <Text>{money(data?.descuento)} USD</Text>
-                    </View>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Otros:</Text>
-                        <Text>{money(data?.otros)} USD</Text>
-                    </View>
-                    <View style={styles.totalRow}>
-                        <Text style={styles.totalLabel}>Impuestos (ITBMS):</Text>
-                        <Text>{money(data?.itbms)} USD</Text>
-                    </View>
-                    <View style={[styles.totalRow, { marginTop: 4 }]}>
-                        <Text style={[styles.totalLabel, styles.bold]}>Total:</Text>
-                        <Text style={[styles.totalValue]}>{money(data?.total)} USD</Text>
-                    </View>
+              ) : null}
+              {data?.clienteSucursal ? (
+                <View style={styles.clientRow}>
+                  <Text style={styles.clientRowLabel}>Sucursal:</Text>
+                  <Text style={styles.clientRowValue}>
+                    {data.clienteSucursal}
+                  </Text>
                 </View>
-
-                {/* Nota/Disclaimer */}
-                <Text style={styles.disclaimer}>
-                    *** Precios de productos incluyen impuestos. Para poder realizar un reclamo o
-                    devolución debe de presentar esta factura ***
+              ) : null}
+              <View style={styles.clientRow}>
+                <Text style={styles.clientRowLabel}>Email:</Text>
+                <Text style={styles.clientRowValue}>
+                  {data?.clienteEmail || "—"}
                 </Text>
-            </Page>
-        </Document>
-    );
+              </View>
+              {data?.clienteTelefono ? (
+                <View style={styles.clientRow}>
+                  <Text style={styles.clientRowLabel}>Tel:</Text>
+                  <Text style={styles.clientRowValue}>
+                    {data.clienteTelefono}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+
+          {/* RIGHT: Logo + info empresa */}
+          <View style={styles.rightHeader}>
+            {data?.logoUrl && <Image style={styles.logo} src={data.logoUrl} />}
+            <View style={styles.empresaBlock}>
+              {data?.razonSocial && (
+                <Text style={styles.empresaName}>{data.razonSocial}</Text>
+              )}
+              {data?.ruc && (
+                <Text style={styles.empresaRow}>RUC: {data.ruc}</Text>
+              )}
+              {data?.telefono && (
+                <Text style={styles.empresaRow}>Tel: {data.telefono}</Text>
+              )}
+              {data?.emailEmpresa && (
+                <Text style={styles.empresaRow}>{data.emailEmpresa}</Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* ── META STRIP ──────────────────────────────────────────── */}
+        <View style={styles.metaStrip}>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Nota #</Text>
+            <Text style={styles.metaValue}>{data?.id || "—"}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Fecha de emisión</Text>
+            <Text style={styles.metaValue}>{fmtDate(data?.fechaEmision)}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Paquetes</Text>
+            <Text style={styles.metaValue}>{data?.items?.length || 0}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Peso total</Text>
+            <Text style={styles.metaValue}>
+              {lb(data?.items?.reduce((s, i) => s + (Number(i.peso) || 0), 0))}
+            </Text>
+          </View>
+        </View>
+
+        {/* ── TABLA DE PAQUETES ───────────────────────────────────── */}
+        <View style={styles.table}>
+          <View style={styles.thead}>
+            <Text style={[styles.colNum, styles.th]}>#</Text>
+            <Text style={[styles.colTracking, styles.th]}>No. Tracking</Text>
+            <Text style={[styles.colPeso, styles.th]}>Peso</Text>
+            <Text style={[styles.colPrecio, styles.th]}>Precio/LB</Text>
+            <Text style={[styles.colTotal, styles.th]}>Total</Text>
+          </View>
+          {data?.items?.map((it, idx) => (
+            <View
+              key={idx}
+              style={[styles.tbodyRow, idx % 2 === 1 ? styles.tbodyRowAlt : {}]}
+            >
+              <Text style={[styles.colNum, styles.td]}>{idx + 1}</Text>
+              <Text style={[styles.colTracking, styles.td]}>{it.tracking}</Text>
+              <Text style={[styles.colPeso, styles.td]}>{lb(it.peso)}</Text>
+              <Text style={[styles.colPrecio, styles.td]}>
+                {money(it.precioLb)}
+              </Text>
+              <Text style={[styles.colTotal, styles.td]}>
+                {money(it.total)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* ── TOTALES ─────────────────────────────────────────────── */}
+        <View style={styles.totalsBlock}>
+          <View style={styles.totalRow}>
+            <Text>Sub-Total:</Text>
+            <Text>{money(data?.subtotal)} USD</Text>
+          </View>
+          {Number(data?.descuento) > 0 && (
+            <View style={styles.totalRow}>
+              <Text>Descuento:</Text>
+              <Text>- {money(data?.descuento)} USD</Text>
+            </View>
+          )}
+          {Number(data?.otros) > 0 && (
+            <View style={styles.totalRow}>
+              <Text>Otros:</Text>
+              <Text>{money(data?.otros)} USD</Text>
+            </View>
+          )}
+          {Number(data?.itbms) > 0 && (
+            <View style={styles.totalRow}>
+              <Text>Impuestos (ITBMS):</Text>
+              <Text>{money(data?.itbms)} USD</Text>
+            </View>
+          )}
+          <View style={styles.totalRowFinal}>
+            <Text>Total:</Text>
+            <Text style={styles.totalValueFinal}>{money(data?.total)} USD</Text>
+          </View>
+        </View>
+
+        {/* ── FIRMAS ──────────────────────────────────────────────── */}
+        <View style={styles.signatureBlock}>
+          <View style={styles.signatureBox}>
+            <Text style={styles.signatureLabel}>Firma del cliente</Text>
+          </View>
+          <View style={styles.signatureBox}>
+            <Text style={styles.signatureLabel}>Firma del operador</Text>
+          </View>
+        </View>
+
+        {/* ── DISCLAIMER ──────────────────────────────────────────── */}
+        <Text style={styles.disclaimer}>
+          Para reclamos o devoluciones presente este documento. Los precios
+          incluyen impuestos aplicables.
+        </Text>
+      </Page>
+    </Document>
+  );
 }

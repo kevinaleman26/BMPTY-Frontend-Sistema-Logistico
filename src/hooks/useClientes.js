@@ -16,11 +16,13 @@ export function useClientes() {
     const documento = searchParams.get('documento') || ''
     const sucursalId = searchParams.get('sucursal_id') || ''
     const tipoDocumentoId = searchParams.get('document_type') || ''
+    const orderBy = searchParams.get('orderBy') || 'full_name'
+    const orderDir = searchParams.get('orderDir') || 'asc'
 
     const from = (page - 1) * limit
     const to = from + limit - 1
 
-    const queryKey = ['clientes', { page, limit, nombre, documento, sucursalId, tipoDocumentoId, user: session?.user?.id }]
+    const queryKey = ['clientes', { page, limit, nombre, documento, sucursalId, tipoDocumentoId, orderBy, orderDir, user: session?.user?.id }]
 
     const queryFn = async () => {
 
@@ -45,6 +47,8 @@ export function useClientes() {
                 .range(from, to)
         }
 
+        query = query.order(orderBy, { ascending: orderDir === 'asc' })
+
         if (nombre) query = query.ilike('full_name', `%${nombre}%`)
         if (documento) query = query.ilike('document_number', `%${documento}%`)
         if (sucursalId) query = query.eq('sucursal_id', sucursalId)
@@ -65,12 +69,13 @@ export function useClientes() {
 
     return {
         data,
-        isLoading: isLoading || loading, // 👈 cubre también el loading de la sesión
+        isLoading: isLoading || loading,
         isError,
         error,
         count: data?.count || 0,
         page,
         limit,
-        session, // 👈 lo devuelvo por si quieres usar datos de sesión en el componente
+        orderBy,
+        orderDir,
     }
 }

@@ -1,20 +1,88 @@
 'use client'
 
 import { useSession } from '@/hooks/useSession'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+// ── Idle timeout deshabilitado ────────────────────────────────────────────────
+// import { useIdleTimeout } from '@/hooks/useIdleTimeout'
+// import IdleWarningModal from '@/components/Modal/IdleWarningModal'
+// ─────────────────────────────────────────────────────────────────────────────
+import { useEffect, useState } from 'react'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
 
 export default function ProtectedRoute({ children }) {
     const { session, loading } = useSession()
-    const router = useRouter()
+    const [mounted, setMounted] = useState(false)
 
+    // ── Idle timeout deshabilitado ────────────────────────────────────────────
+    // const [showWarning, setShowWarning] = useState(false)
+    //
+    // const handleLogout = useCallback(async () => {
+    //     setShowWarning(false)
+    //     try {
+    //         await supabase.auth.signOut()
+    //     } finally {
+    //         window.location.href = '/login'
+    //     }
+    // }, [])
+    //
+    // const handleWarn = useCallback(() => {
+    //     setShowWarning(true)
+    // }, [])
+    //
+    // const handleStay = useCallback(() => {
+    //     setShowWarning(false)
+    // }, [])
+    //
+    // useIdleTimeout({
+    //     onWarn: handleWarn,
+    //     onLogout: handleLogout,
+    //     enabled: !!session && !showWarning,
+    // })
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // Ensure server and client both render null on the first pass.
+    // Without this, SPA navigations cause a hydration mismatch because
+    // React Query has the session cached on the client but not on the server.
     useEffect(() => {
-        if (!loading && !session) {
-            router.push('/login') // redirige si no hay sesión
+        setMounted(true)
+    }, [])
+
+    // Redirigir si no hay sesión (expiración natural, cierre externo, etc.)
+    useEffect(() => {
+        if (mounted && !loading && !session) {
+            window.location.replace('/login')
         }
-    }, [loading, session, router])
+    }, [mounted, loading, session])
 
-    if (loading || !session) return null // o un loader
+    // Prevents hydration mismatch (server always renders null on first pass)
+    if (!mounted) return null
 
-    return children
+    // Show loading screen while session is being verified (e.g. token refresh on page reload)
+    if (loading) return (
+        <Box sx={{
+            minHeight: '100vh',
+            backgroundColor: '#000',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+        }}>
+            <CircularProgress sx={{ color: '#f4b223' }} />
+        </Box>
+    )
+
+    // No session → redirect to login (via useEffect above)
+    if (!session) return null
+
+    return (
+        <>
+            {children}
+            {/* ── Idle warning modal deshabilitado ──────────────────────────────
+            <IdleWarningModal
+                open={showWarning}
+                onStay={handleStay}
+                onLogout={handleLogout}
+            />
+            ──────────────────────────────────────────────────────────────── */}
+        </>
+    )
 }
